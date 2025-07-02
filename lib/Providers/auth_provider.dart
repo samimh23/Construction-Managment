@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
-import '../models/user.dart';
-import '../models/auth_models.dart';
-import '../services/auth/auth_service.dart';
+
+import '../Models/auth_models.dart';
+import '../Models/user.dart';
 import '../core/exceptions/app_exceptions.dart';
+import '../services/auth/auth_service.dart';
 
 enum AuthStatus { initial, loading, authenticated, unauthenticated }
 

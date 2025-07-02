@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../Models/auth_models.dart';
+import '../../models/auth_models.dart';
 import '../../Providers/auth_provider.dart';
 import '../../Widgets/Forms/custom_text _field.dart';
 import '../../core/utils/validators.dart';
