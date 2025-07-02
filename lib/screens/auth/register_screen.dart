@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/auth_models.dart';
+import '../../Models/auth_models.dart';
+import '../../Providers/auth_provider.dart';
 import '../../Widgets/Forms/custom_text _field.dart';
-import '../../providers/auth_provider.dart';
 import '../../widgets/forms/password_strength_indicator.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/validators.dart';

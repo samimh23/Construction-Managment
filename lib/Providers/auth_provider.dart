@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-import '../Models/auth_models.dart';
 import '../Models/user.dart';
+import '../Models/auth_models.dart';
 import '../core/exceptions/app_exceptions.dart';
 import '../services/auth/auth_service.dart';
 

@@ -3,12 +3,12 @@ import 'package:constructionproject/services/auth/auth_service.dart';
 import 'package:constructionproject/screens/auth/register_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:provider/provider.dart';
 
-import 'providers/auth_provider.dart';
 
+import 'Providers/auth_provider.dart';
 import 'core/constants/app_colors.dart';
 
 void main() {
