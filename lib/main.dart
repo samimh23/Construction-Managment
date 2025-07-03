@@ -1,15 +1,16 @@
+
+import 'package:constructionproject/Providers/auth_provider.dart';
+import 'package:constructionproject/core/constants/api_constants.dart';
+import 'package:constructionproject/core/constants/app_colors.dart';
 import 'package:constructionproject/screens/auth/LoginPage.dart';
 import 'package:constructionproject/screens/auth/register_screen.dart';
 import 'package:constructionproject/services/auth/auth_service.dart';
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
-
-import 'Providers/auth_provider.dart';
-import 'core/constants/app_colors.dart';
 
 void main() {
   runApp(const MyApp());
@@ -24,7 +25,7 @@ class MyApp extends StatelessWidget {
       providers: [
         Provider<Dio>(
           create: (_) => Dio(BaseOptions(
-            baseUrl: 'https://your-api-url.com/api',
+            baseUrl: ApiConstants.localBaseUrl,
             connectTimeout: const Duration(seconds: 30),
             receiveTimeout: const Duration(seconds: 30),
           )),
