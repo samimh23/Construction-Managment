@@ -83,18 +83,30 @@ class AuthResponse extends Equatable {
   });
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
+    final token = json['access_token'];
+    final refreshToken = json['refresh_token'];
+    final userJson = json['user'];
+    if (token == null) {
+      throw Exception("Missing 'access_token' in response: $json");
+    }
+    if (refreshToken == null) {
+      throw Exception("Missing 'refresh_token' in response: $json");
+    }
+    if (userJson == null) {
+      throw Exception("Missing 'user' in response: $json");
+    }
     return AuthResponse(
-      user: User.fromJson(json['user'] as Map<String, dynamic>),
-      token: json['token'] as String,
-      refreshToken: json['refreshToken'] as String,
+      user: User.fromJson(userJson as Map<String, dynamic>),
+      token: token as String,
+      refreshToken: refreshToken as String,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'user': user.toJson(),
-      'token': token,
-      'refreshToken': refreshToken,
+      'access_token': token,
+      'refresh_token': refreshToken,
     };
   }
 
