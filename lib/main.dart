@@ -7,6 +7,13 @@ import 'package:constructionproject/screens/auth/register_screen.dart';
 import 'package:constructionproject/services/auth/auth_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+
+import 'package:provider/provider.dart';
+
+import 'Construction/Provider/ConstructionSite/Provider.dart';
+import 'Construction/service/ConstructionSiteService.dart';
+import 'Construction/screen/ConstructionSite/Home.dart';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -23,6 +30,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+
+        ChangeNotifierProvider(
+          create: (_) => SiteProvider(SiteService()),
+        ),
+        // Add more providers here if needed
+      ],
+      child: MaterialApp(
+        title: 'Construction Manager',
+        theme: ThemeData(primarySwatch: Colors.blue),
+        home: const HomeScreen(),
+
         Provider<Dio>(
           create: (_) => Dio(BaseOptions(
             baseUrl: ApiConstants.localBaseUrl,
@@ -86,6 +104,7 @@ class MyApp extends StatelessWidget {
           '/register': (context) => const RegisterScreen(),
           // Add other routes here
         },
+
       ),
     );
   }
