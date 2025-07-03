@@ -1,6 +1,6 @@
 import 'package:constructionproject/screens/auth/LoginPage.dart';
-import 'package:constructionproject/services/auth/auth_service.dart';
 import 'package:constructionproject/screens/auth/register_screen.dart';
+import 'package:constructionproject/services/auth/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:dio/dio.dart';
