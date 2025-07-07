@@ -2,71 +2,70 @@ import 'package:equatable/equatable.dart';
 
 class User extends Equatable {
   final String id;
+  final String firstName;
+  final String lastName;
   final String email;
-  final String fullName;
-  final String? company;
-  final String? phone;
-  final UserRole role;
-  final DateTime createdAt;
-  final DateTime? updatedAt;
+  final String role;
+  final bool isActive;
+  final String createdAt;
+  final String updatedAt;
+  final int v;
+  final String? refreshToken; // User's refreshToken (optional, can be null)
 
   const User({
     required this.id,
+    required this.firstName,
+    required this.lastName,
     required this.email,
-    required this.fullName,
-    this.company,
-    this.phone,
     required this.role,
+    required this.isActive,
     required this.createdAt,
-    this.updatedAt,
+    required this.updatedAt,
+    required this.v,
+    this.refreshToken,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'] as String,
+      id: json['_id'] as String,
+      firstName: json['firstName'] as String,
+      lastName: json['lastName'] as String,
       email: json['email'] as String,
-      fullName: json['fullName'] as String,
-      company: json['company'] as String?,
-      phone: json['phone'] as String?,
-      role: UserRole.values.firstWhere(
-            (e) => e.name == json['role'],
-        orElse: () => UserRole.employee,
-      ),
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
-          : null,
+      role: json['role'] as String,
+      isActive: json['isActive'] as bool,
+      createdAt: json['createdAt'] as String,
+      updatedAt: json['updatedAt'] as String,
+      v: json['__v'] as int,
+      refreshToken: json['refreshToken'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      '_id': id,
+      'firstName': firstName,
+      'lastName': lastName,
       'email': email,
-      'fullName': fullName,
-      'company': company,
-      'phone': phone,
-      'role': role.name,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
+      'role': role,
+      'isActive': isActive,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+      '__v': v,
+      'refreshToken': refreshToken,
     };
   }
 
   @override
   List<Object?> get props => [
     id,
+    firstName,
+    lastName,
     email,
-    fullName,
-    company,
-    phone,
     role,
+    isActive,
     createdAt,
     updatedAt,
+    v,
+    refreshToken,
   ];
-}
-
-enum UserRole {
-  admin,
-  manager,
-  employee,
 }
