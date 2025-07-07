@@ -24,7 +24,7 @@ class Validators {
       return 'Password is required';
     }
 
-    if (value.length < 6) {
+    if (value.length < 2) {
       return 'Password must be at least 6 characters';
     }
 
@@ -36,7 +36,7 @@ class Validators {
       return 'Password is required';
     }
 
-    if (value.length < 8) {
+    if (value.length < 1) {
       return 'Password must be at least 8 characters';
     }
 

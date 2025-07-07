@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../Models/auth_models.dart';
 import '../../Models/user.dart';
@@ -9,7 +9,7 @@ import '../../core/exceptions/app_exceptions.dart';
 
 class AuthService {
   final Dio _dio;
-  final FlutterSecureStorage _secureStorage;
+  final SharedPreferences _sharedPreferences;
 
   static const String _tokenKey = 'auth_token';
   static const String _refreshTokenKey = 'refresh_token';
@@ -17,9 +17,9 @@ class AuthService {
 
   AuthService({
     required Dio dio,
-    required FlutterSecureStorage secureStorage,
+    required SharedPreferences sharedPreferences,
   })  : _dio = dio,
-        _secureStorage = secureStorage {
+        _sharedPreferences = sharedPreferences {
     _setupDio();
   }
 
@@ -30,7 +30,6 @@ class AuthService {
     _dio.options.sendTimeout = Duration(milliseconds: ApiConstants.sendTimeout);
     _dio.options.headers.addAll(ApiConstants.defaultHeaders);
 
-    // Add request interceptor to include auth token
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -42,15 +41,12 @@ class AuthService {
         },
         onError: (error, handler) async {
           if (error.response?.statusCode == ApiConstants.statusUnauthorized) {
-            // Try to refresh token
             final refreshed = await _refreshToken();
             if (refreshed) {
-              // Retry the original request
               final response = await _dio.fetch(error.requestOptions);
               handler.resolve(response);
               return;
             } else {
-              // Refresh failed, logout user
               await _clearAuthData();
             }
           }
@@ -115,19 +111,18 @@ class AuthService {
   }
 
   Future<String?> getToken() async {
-    return await _secureStorage.read(key: _tokenKey);
+    return _sharedPreferences.getString(_tokenKey);
   }
 
   Future<User?> getCurrentUser() async {
     try {
-      final userDataString = await _secureStorage.read(key: _userKey);
+      final userDataString = _sharedPreferences.getString(_userKey);
       if (userDataString != null) {
         final userData = jsonDecode(userDataString) as Map<String, dynamic>;
         return User.fromJson(userData);
       }
     } catch (e) {
-      // Clear corrupted user data
-      await _secureStorage.delete(key: _userKey);
+      await _sharedPreferences.remove(_userKey);
     }
     return null;
   }
@@ -139,7 +134,7 @@ class AuthService {
 
   Future<bool> _refreshToken() async {
     try {
-      final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
+      final refreshToken = _sharedPreferences.getString(_refreshTokenKey);
       if (refreshToken == null) return false;
 
       final response = await _dio.post(
@@ -157,19 +152,15 @@ class AuthService {
   }
 
   Future<void> _storeAuthData(AuthResponse authResponse) async {
-    await Future.wait([
-      _secureStorage.write(key: _tokenKey, value: authResponse.token),
-      _secureStorage.write(key: _refreshTokenKey, value: authResponse.refreshToken),
-      _secureStorage.write(key: _userKey, value: jsonEncode(authResponse.user.toJson())),
-    ]);
+    await _sharedPreferences.setString(_tokenKey, authResponse.token);
+    await _sharedPreferences.setString(_refreshTokenKey, authResponse.refreshToken);
+    await _sharedPreferences.setString(_userKey, jsonEncode(authResponse.user.toJson()));
   }
 
   Future<void> _clearAuthData() async {
-    await Future.wait([
-      _secureStorage.delete(key: _tokenKey),
-      _secureStorage.delete(key: _refreshTokenKey),
-      _secureStorage.delete(key: _userKey),
-    ]);
+    await _sharedPreferences.remove(_tokenKey);
+    await _sharedPreferences.remove(_refreshTokenKey);
+    await _sharedPreferences.remove(_userKey);
   }
 
   AppException _handleDioException(DioException e) {

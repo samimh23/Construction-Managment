@@ -44,7 +44,7 @@ class AppDrawer extends StatelessWidget {
             ),
             _DrawerItem(
               icon: Icons.person,
-              label: 'Profile',
+              label: 'My Workers',
               selected: selectedIndex == 2,
               onTap: () {
                 Navigator.of(context).pop();

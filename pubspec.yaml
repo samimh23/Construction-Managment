@@ -44,6 +44,8 @@ dependencies:
   # Icons
   flutter_svg: ^2.0.7
 
+  shared_preferences: ^2.5.3
+
   # State Management
   provider: ^6.1.5
 

@@ -1,3 +1,4 @@
+import 'package:constructionproject/Worker/Screens/worker_list_page.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -221,13 +222,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    Widget page;
+    if (selectedTab == 0) {
+      page = _mapPage(context);
+    } else if (selectedTab == 1) {
+      page = _sitesListPage(context); // Or your manage page
+    } else if (selectedTab == 2) {
+      page = const WorkerListPage(); // <-- show your workers page here
+    } else {
+      page = Center(child: Text('Unknown tab'));
+    }
     return Scaffold(
       drawer: AppDrawer(
         selectedIndex: selectedTab,
         onSelect: (i) => setState(() => selectedTab = i),
       ),
-      appBar: AppBar(title: const Text("Construction Sites")),
-      body: selectedTab == 0 ? _mapPage(context) : _sitesListPage(context),
+      appBar: AppBar(title: const Text("Construction Manager")),
+      body: page,
     );
   }
 }
