@@ -16,7 +16,8 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => SiteProvider(SiteService()),
+          // The fix: fetchSites() runs as soon as provider is created!
+          create: (_) => SiteProvider(SiteService())..fetchSites(),
         ),
         // Add more providers here if needed
       ],
