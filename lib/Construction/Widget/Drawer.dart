@@ -1,3 +1,4 @@
+import 'package:constructionproject/profile/screens/Profile_page.dart';
 import 'package:flutter/material.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -49,6 +50,17 @@ class AppDrawer extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).pop();
                 onSelect(2);
+              },
+            ),
+            _DrawerItem(
+              icon: Icons.account_circle,
+              label: 'Profile',
+              selected: selectedIndex == 3,
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfilePage()),
+                );
               },
             ),
             const Spacer(),

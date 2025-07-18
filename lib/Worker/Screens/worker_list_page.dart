@@ -4,6 +4,14 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+// Assuming WorkSummary is defined somewhere globally
+class WorkSummary {
+  final String date;
+  final double totalHours;
+
+  WorkSummary({required this.date, required this.totalHours});
+}
+
 class WorkerListPage extends StatefulWidget {
   const WorkerListPage({super.key});
 
@@ -75,6 +83,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
     final lastNameController = TextEditingController();
     final phoneController = TextEditingController();
     final jobTitleController = TextEditingController();
+    final dailyWageController = TextEditingController();
     String? selectedSiteId;
 
     showDialog(
@@ -102,6 +111,11 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                 TextField(
                   controller: jobTitleController,
                   decoration: const InputDecoration(labelText: 'Job Title'),
+                ),
+                TextField(
+                  controller: dailyWageController,
+                  decoration: const InputDecoration(labelText: 'Daily Wage (TND)'),
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
                 ),
                 Consumer<SiteProvider>(
                   builder: (context, siteProvider, _) {
@@ -150,6 +164,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                   );
                   return;
                 }
+                double dailyWage = double.tryParse(dailyWageController.text) ?? 0;
                 try {
                   await Provider.of<WorkerProvider>(context, listen: false).createWorker(
                     firstName: firstNameController.text,
@@ -157,6 +172,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                     phone: phoneController.text,
                     jobTitle: jobTitleController.text,
                     siteId: selectedSiteId!,
+                    dailyWage: dailyWage,
                   );
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Worker created successfully!')),
@@ -242,6 +258,82 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
     );
   }
 
+  // NEW: Show worker summary dialog
+  void _showWorkerSummaryDialog(BuildContext context, String workerId, String workerName) async {
+    final provider = Provider.of<WorkerProvider>(context, listen: false);
+    final now = DateTime.now();
+    await provider.fetchDailySummary(workerId: workerId);
+    await provider.fetchMonthlySalary(
+      workerId: workerId,
+      year: now.year,
+      month: now.month,
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Consumer<WorkerProvider>(
+          builder: (context, provider, _) {
+            return AlertDialog(
+              title: Text('Attendance Summary: $workerName'),
+              content: provider.isSummaryLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : provider.summaryError != null
+                  ? Text('Error: ${provider.summaryError}')
+                  : provider.dailySummary.isEmpty
+                  ? const Text('No attendance records found.')
+                  : SizedBox(
+                width: 300,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Date         |   Hours', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    ...provider.dailySummary.map((summary) => Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(summary.date),
+                        Text('${summary.totalHours.toStringAsFixed(2)} h'),
+                      ],
+                    )),
+                    const SizedBox(height: 16),
+                    if (provider.isMonthlySalaryLoading)
+                      const CircularProgressIndicator()
+                    else if (provider.monthlySalaryError != null)
+                      Text('Monthly Salary Error: ${provider.monthlySalaryError}', style: TextStyle(color: Colors.red))
+                    else if (provider.monthlySalary != null)
+                        Column(
+                          children: [
+                            const Divider(),
+                            Text(
+                              'Monthly Salary (${provider.monthlySalary!.year}-${provider.monthlySalary!.month.toString().padLeft(2, '0')}):',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Text('Total Hours: ${provider.monthlySalary!.totalHours.toStringAsFixed(2)}'),
+                            Text('Full Days: ${provider.monthlySalary!.fullDays.toStringAsFixed(2)}'),
+                            Text('Daily Wage: \$${provider.monthlySalary!.dailyWage.toStringAsFixed(2)}'),
+                            Text(
+                              'Salary: \$${provider.monthlySalary!.salary.toStringAsFixed(2)}',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                            ),
+                          ],
+                        ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -249,6 +341,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
       body: CustomScrollView(
         slivers: [
           // Modern App Bar with Statistics
+          // ...unchanged...
           SliverAppBar(
             expandedHeight: 280,
             floating: false,
@@ -366,14 +459,13 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
               ),
             ],
           ),
-
-          // Search Bar and Role Filter
+          // Search Bar and Role Filter (unchanged)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // Search Bar
+                  // ...existing search and filter...
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -408,8 +500,6 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // Role Filter
                   Consumer<WorkerProvider>(
                     builder: (context, provider, child) {
                       if (provider.workers.isEmpty) return const SizedBox();
@@ -476,8 +566,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
               ),
             ),
           ),
-
-          // Worker List
+          // Worker List updated
           Consumer<WorkerProvider>(
             builder: (context, provider, child) {
               if (provider.isLoading) {
@@ -573,7 +662,6 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                      // Calculate which role section and worker we're showing
                       int currentIndex = 0;
                       for (final role in sortedRoles) {
                         if (index == currentIndex) {
@@ -598,7 +686,6 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
               );
             },
           ),
-
           // Bottom spacing
           const SliverToBoxAdapter(
             child: SizedBox(height: 100),
@@ -726,6 +813,41 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
       ),
     );
   }
+  void _showDepromoteManagerDialog(BuildContext context, dynamic worker) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Depromote Manager'),
+          content: Text('Are you sure you want to depromote ${worker.firstName} ${worker.lastName} to Worker?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              onPressed: () async {
+                try {
+                  await Provider.of<WorkerProvider>(context, listen: false).depromoteManagerToWorker(worker.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Manager depromoted to worker successfully!')),
+                  );
+                  Navigator.pop(context);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              },
+              child: const Text('Depromote'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   Widget _buildWorkerCard(BuildContext context, dynamic worker) {
     final roleColor = _getRoleColor(worker.role);
@@ -752,7 +874,11 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: () {
-                // TODO: Navigate to worker detail
+                _showWorkerSummaryDialog(
+                  context,
+                  worker.id,
+                  '${worker.firstName} ${worker.lastName}',
+                );
               },
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -852,6 +978,19 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                                   ],
                                 ],
                               ),
+                              // Daily Wage
+                              if (worker.dailyWage != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2.0),
+                                  child: Text(
+                                    'Daily Wage: TND ${worker.dailyWage.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF10B981),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -862,18 +1001,17 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                         ),
                       ],
                     ),
-                    // Promote Button
-                    if (worker.role.toLowerCase() == 'worker')
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12.0),
-                        child: Row(
-                          children: [
+                    // Promote/Edit/Delete/Depromote Buttons
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Row(
+                        children: [
+                          if (worker.role.toLowerCase() == 'worker') ...[
                             if (worker.email == null || worker.email!.isEmpty)
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.mail_outline),
                                 label: const Text("Add Credentials"),
                                 onPressed: () async {
-                                  // Show dialog to enter email/password
                                   final cred = await showDialog<Map<String, String>>(
                                     context: context,
                                     builder: (context) {
@@ -941,25 +1079,181 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                                       const SnackBar(content: Text('Promoted to manager!')),
                                     );
                                   } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Error: $e')),
-                                    );
-                                  }
+        String errorMessage = e.toString();
+        if (e is DioException && e.response?.statusCode == 409) {
+        final backendMsg = e.response?.data['message']?.toString() ?? '';
+        if (backendMsg.contains('already has a manager')) {
+        errorMessage = 'This site already has a manager. Depromote the current manager before promoting another.';
+        }
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+        );
+        }
+
                                 },
                               ),
-                            IconButton(
-                              icon: const Icon(Icons.link),
-                              tooltip: "Assign to Site",
-                              onPressed: () => _showAssignWorkerDialog(context, worker.id),
-                            ),
                           ],
-                        ),
+                          if (worker.role.toLowerCase() == 'manager')
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.arrow_downward_rounded),
+                              label: const Text("Depromote to Worker"),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                              onPressed: () => _showDepromoteManagerDialog(context, worker),
+                            ),
+                          IconButton(
+                            icon: const Icon(Icons.link),
+                            tooltip: "Assign to Site",
+                            onPressed: () => _showAssignWorkerDialog(context, worker.id),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            tooltip: "Edit Worker",
+                            onPressed: () => _showEditWorkerDialog(context, worker),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            tooltip: "Delete Worker",
+                            onPressed: () => _showDeleteWorkerDialog(context, worker),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.bar_chart_rounded),
+                            tooltip: "Show Attendance Summary",
+                            onPressed: () => _showWorkerSummaryDialog(
+                              context,
+                              worker.id,
+                              '${worker.firstName} ${worker.lastName}',
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
+        );
+      },
+    );
+  }
+
+  void _showDeleteWorkerDialog(BuildContext context, dynamic worker) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Worker'),
+          content: Text('Are you sure you want to delete ${worker.firstName} ${worker.lastName}?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                try {
+                  await Provider.of<WorkerProvider>(context, listen: false).deleteWorker(worker.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Worker deleted successfully!')),
+                  );
+                  Navigator.pop(context);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditWorkerDialog(BuildContext context, dynamic worker) {
+    final firstNameController = TextEditingController(text: worker.firstName);
+    final lastNameController = TextEditingController(text: worker.lastName);
+    final phoneController = TextEditingController(text: worker.phone ?? '');
+    final jobTitleController = TextEditingController(text: worker.jobTitle ?? '');
+    final dailyWageController = TextEditingController(text: worker.dailyWage?.toString() ?? '');
+    bool isActive = worker.isActive ?? true;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Worker'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: firstNameController,
+                  decoration: const InputDecoration(labelText: 'First Name'),
+                ),
+                TextField(
+                  controller: lastNameController,
+                  decoration: const InputDecoration(labelText: 'Last Name'),
+                ),
+                TextField(
+                  controller: phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone'),
+                  keyboardType: TextInputType.phone,
+                ),
+                TextField(
+                  controller: jobTitleController,
+                  decoration: const InputDecoration(labelText: 'Job Title'),
+                ),
+                TextField(
+                  controller: dailyWageController,
+                  decoration: const InputDecoration(labelText: 'Daily Wage (TND)'),
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                ),
+                SwitchListTile(
+                  title: const Text('Active'),
+                  value: isActive,
+                  onChanged: (value) {
+                    setState(() {
+                      isActive = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  await Provider.of<WorkerProvider>(context, listen: false).editWorker(
+                    workerId: worker.id,
+                    firstName: firstNameController.text,
+                    lastName: lastNameController.text,
+                    phone: phoneController.text,
+                    jobTitle: jobTitleController.text,
+                    dailyWage: double.tryParse(dailyWageController.text) ?? worker.dailyWage ?? 0,
+                    isActive: isActive,
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Worker updated successfully!')),
+                  );
+                  Navigator.pop(context);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
         );
       },
     );

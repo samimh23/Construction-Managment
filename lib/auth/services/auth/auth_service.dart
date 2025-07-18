@@ -1,11 +1,13 @@
 import 'dart:convert';
+import 'package:constructionproject/auth/models/user.dart';
+import 'package:constructionproject/auth/models/auth_models.dart';
+import 'package:constructionproject/core/constants/api_constants.dart';
+import 'package:constructionproject/core/exceptions/app_exceptions.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../Models/auth_models.dart';
-import '../../Models/user.dart';
-import '../../core/constants/api_constants.dart';
-import '../../core/exceptions/app_exceptions.dart';
+
+
 
 class AuthService {
   final Dio _dio;

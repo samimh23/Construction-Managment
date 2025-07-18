@@ -1,7 +1,10 @@
+
+
+import 'package:constructionproject/auth/models/auth_models.dart';
+import 'package:constructionproject/auth/models/user.dart';
+import 'package:constructionproject/auth/services/auth/auth_service.dart';
 import 'package:flutter/foundation.dart';
-import '../Models/user.dart';
-import '../Models/auth_models.dart';
-import '../services/auth/auth_service.dart';
+
 
 enum AuthStatus { initial, loading, authenticated, unauthenticated }
 

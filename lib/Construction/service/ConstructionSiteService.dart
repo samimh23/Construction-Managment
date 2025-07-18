@@ -1,71 +1,62 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import '../Core/Constants/api_constants.dart';
 import '../Model/Constructionsite/ConstructionSiteModel.dart';
 
 class SiteService {
-  // CREATE
+  final Dio _dio = Dio(BaseOptions(
+    baseUrl: ApiConstants.baseUrl,
+    headers: ApiConstants.defaultHeaders,
+    connectTimeout: Duration(milliseconds: ApiConstants.connectTimeout),
+    receiveTimeout: Duration(milliseconds: ApiConstants.receiveTimeout),
+    sendTimeout: Duration(milliseconds: ApiConstants.sendTimeout),
+  ));
+
   Future<ConstructionSite> addSite(ConstructionSite site) async {
-    final response = await http.post(
-      Uri.parse(ApiConstants.getFullUrl(ApiConstants.CreateConstructionsite)),
-      headers: ApiConstants.defaultHeaders,
-      body: json.encode(site.toJson()),
+    final response = await _dio.post(
+      ApiConstants.CreateConstructionsite,
+      data: site.toJson(),
     );
     if (response.statusCode == ApiConstants.statusOk ||
         response.statusCode == ApiConstants.statusCreated) {
-      return ConstructionSite.fromJson(json.decode(response.body));
+      return ConstructionSite.fromJson(response.data);
     } else {
-      throw Exception('Failed to add site: ${response.body}');
+      throw Exception('Failed to add site: ${response.data}');
     }
   }
 
-  // READ ALL
   Future<List<ConstructionSite>> fetchSites() async {
-    final response = await http.get(
-      Uri.parse(ApiConstants.getFullUrl(ApiConstants.GetConstructionsites)),
-      headers: ApiConstants.defaultHeaders,
-    );
+    final response = await _dio.get(ApiConstants.GetConstructionsites);
     if (response.statusCode == ApiConstants.statusOk) {
-      final List data = json.decode(response.body);
+      final List data = response.data;
       return data.map((e) => ConstructionSite.fromJson(e)).toList();
     }
-    throw Exception('Failed to load sites: ${response.body}');
+    throw Exception('Failed to load sites: ${response.data}');
   }
 
-  // READ ONE
   Future<ConstructionSite> fetchSiteById(String id) async {
-    final response = await http.get(
-      Uri.parse(ApiConstants.getFullUrl('${ApiConstants.GetConstructionsiteById}$id')),
-      headers: ApiConstants.defaultHeaders,
-    );
+    final response = await _dio.get('${ApiConstants.GetConstructionsiteById}$id');
     if (response.statusCode == ApiConstants.statusOk) {
-      return ConstructionSite.fromJson(json.decode(response.body));
+      return ConstructionSite.fromJson(response.data);
     }
-    throw Exception('Failed to load site: ${response.body}');
+    throw Exception('Failed to load site: ${response.data}');
   }
 
-  // UPDATE
   Future<ConstructionSite> updateSite(ConstructionSite site) async {
-    final response = await http.patch(
-      Uri.parse(ApiConstants.getFullUrl('${ApiConstants.UpdateConstructionsite}${site.id}')),
-      headers: ApiConstants.defaultHeaders,
-      body: json.encode(site.toJson()),
+    final response = await _dio.patch(
+      '${ApiConstants.UpdateConstructionsite}${site.id}',
+      data: site.toJson(),
     );
     if (response.statusCode == ApiConstants.statusOk) {
-      return ConstructionSite.fromJson(json.decode(response.body));
+      return ConstructionSite.fromJson(response.data);
     }
-    throw Exception('Failed to update site: ${response.body}');
+    throw Exception('Failed to update site: ${response.data}');
   }
 
-  // DELETE
   Future<void> deleteSite(String id) async {
-    final response = await http.delete(
-      Uri.parse(ApiConstants.getFullUrl('${ApiConstants.DeleteConstructionsite}$id')),
-      headers: ApiConstants.defaultHeaders,
-    );
+    final response = await _dio.delete('${ApiConstants.DeleteConstructionsite}$id');
     if (response.statusCode != ApiConstants.statusOk &&
         response.statusCode != ApiConstants.statusNoContent) {
-      throw Exception('Failed to delete site: ${response.body}');
+      throw Exception('Failed to delete site: ${response.data}');
     }
   }
 }

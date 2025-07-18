@@ -7,7 +7,6 @@ class SiteProvider extends ChangeNotifier {
   List<ConstructionSite> _sites = [];
   bool _loading = false;
 
-  // Add these for HomeScreen interactivity!
   double _currentZoom = 12;
   String? _hoveredSiteId;
   bool _showTooltip = false;
@@ -16,8 +15,6 @@ class SiteProvider extends ChangeNotifier {
 
   List<ConstructionSite> get sites => _sites;
   bool get loading => _loading;
-
-  // Add these getters!
   double get currentZoom => _currentZoom;
   String? get hoveredSiteId => _hoveredSiteId;
   bool get showTooltip => _showTooltip;
@@ -48,7 +45,6 @@ class SiteProvider extends ChangeNotifier {
     await fetchSites();
   }
 
-  // Add these for map interaction!
   void setZoom(double zoom) {
     _currentZoom = zoom;
     notifyListeners();

@@ -1,5 +1,5 @@
+import 'package:constructionproject/auth/services/auth/auth_service.dart';
 import 'package:dio/dio.dart';
-import 'package:constructionproject/services/auth/auth_service.dart';
 
 class ManagerService {
   final Dio dio;

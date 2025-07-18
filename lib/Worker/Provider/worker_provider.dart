@@ -7,6 +7,14 @@ class WorkerProvider with ChangeNotifier {
   List<Worker> workers = [];
   bool isLoading = false;
 
+  List<WorkSummary> dailySummary = [];
+  bool isSummaryLoading = false;
+  String? summaryError;
+
+  MonthlySalary? monthlySalary;
+  bool isMonthlySalaryLoading = false;
+  String? monthlySalaryError;
+
   WorkerProvider(this.workerService);
 
   Future<void> loadWorkersByOwner() async {
@@ -39,6 +47,7 @@ class WorkerProvider with ChangeNotifier {
     required String phone,
     required String jobTitle,
     required String siteId,
+    required double dailyWage,
   }) async {
     await workerService.createWorker(
       firstName: firstName,
@@ -46,13 +55,90 @@ class WorkerProvider with ChangeNotifier {
       phone: phone,
       jobTitle: jobTitle,
       siteId: siteId,
+      dailyWage: dailyWage,
     );
+    await loadWorkersByOwner();
+  }
+
+  Future<void> editWorker({
+    required String workerId,
+    String? firstName,
+    String? lastName,
+    String? phone,
+    String? jobTitle,
+    double? dailyWage,
+    bool? isActive,
+  }) async {
+    await workerService.editWorker(
+      workerId: workerId,
+      firstName: firstName,
+      lastName: lastName,
+      phone: phone,
+      jobTitle: jobTitle,
+      dailyWage: dailyWage,
+      isActive: isActive,
+    );
+    await loadWorkersByOwner();
+  }
+
+  Future<void> deleteWorker(String workerId) async {
+    await workerService.deleteWorker(workerId: workerId);
     await loadWorkersByOwner();
   }
 
   Future<void> assignWorkerToSite(String workerId, String siteId) async {
     await workerService.assignWorkerToSite(workerId: workerId, siteId: siteId);
-    await loadWorkersByOwner(); // Optionally refresh the list
+    await loadWorkersByOwner();
   }
 
+  Future<void> fetchDailySummary({
+    required String workerId,
+    String? from,
+    String? to,
+  }) async {
+    isSummaryLoading = true;
+    summaryError = null;
+    notifyListeners();
+    try {
+      dailySummary = await workerService.fetchDailySummary(
+        workerId: workerId,
+        from: from,
+        to: to,
+      );
+    } catch (e) {
+      summaryError = e.toString();
+      dailySummary = [];
+    } finally {
+      isSummaryLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> depromoteManagerToWorker(String managerId) async {
+    await workerService.depromoteManagerToWorker(managerId: managerId);
+    await loadWorkersByOwner();
+  }
+
+  Future<void> fetchMonthlySalary({
+    required String workerId,
+    required int year,
+    required int month,
+  }) async {
+    isMonthlySalaryLoading = true;
+    monthlySalaryError = null;
+    notifyListeners();
+    try {
+      monthlySalary = await workerService.fetchMonthlySalary(
+        workerId: workerId,
+        year: year,
+        month: month,
+      );
+    } catch (e) {
+      monthlySalaryError = e.toString();
+      monthlySalary = null;
+    } finally {
+      isMonthlySalaryLoading = false;
+      notifyListeners();
+    }
+  }
 }

@@ -1,10 +1,11 @@
+import 'package:constructionproject/auth/models/auth_models.dart';
+import 'package:constructionproject/auth/Providers/auth_provider.dart';
+import 'package:constructionproject/auth/Widgets/Forms/custom_text%20_field.dart';
 import 'package:constructionproject/core/constants/app_colors.dart';
+import 'package:constructionproject/core/utils/validators.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../Models/auth_models.dart';
-import '../../Providers/auth_provider.dart';
-import '../../Widgets/Forms/custom_text _field.dart';
-import '../../core/utils/validators.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
