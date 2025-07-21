@@ -1,6 +1,8 @@
 import 'package:constructionproject/profile/screens/Profile_page.dart';
 import 'package:flutter/material.dart';
 
+import '../../Worker/Screens/worker_list_page.dart';
+
 class AppDrawer extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onSelect;
@@ -49,7 +51,9 @@ class AppDrawer extends StatelessWidget {
               selected: selectedIndex == 2,
               onTap: () {
                 Navigator.of(context).pop();
-                onSelect(2);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => WorkerListPage()),
+                );
               },
             ),
             _DrawerItem(

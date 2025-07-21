@@ -24,6 +24,9 @@ import 'Construction/Provider/ConstructionSite/Provider.dart';
 import 'Construction/service/ConstructionSiteService.dart';
 import 'Construction/screen/ConstructionSite/Home.dart';
 
+// --- Add this import for manager location provider ---
+import 'Manger/Provider/ManagerLocationProvider.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -73,7 +76,7 @@ class MyApp extends StatelessWidget {
         ),
 
         ChangeNotifierProvider(
-          create: (_) => SiteProvider(SiteService()),
+          create: (_) => SiteProvider(SiteService())..fetchSites(),
         ),
 
         ProxyProvider2<Dio, AuthService, ManagerService>(
@@ -99,6 +102,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProxyProvider<ProfileService, ProfileProvider>(
           create: (context) => ProfileProvider(context.read<ProfileService>()),
           update: (_, profileService, __) => ProfileProvider(profileService),
+        ),
+
+        // --- MANAGER LOCATION PROVIDER for WebSocket real-time ---
+        ChangeNotifierProvider(
+          create: (_) => ManagerLocationProvider(),
         ),
       ],
       child: MaterialApp(
