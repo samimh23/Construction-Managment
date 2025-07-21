@@ -1,6 +1,7 @@
 import 'package:constructionproject/Manger/manager_provider/ManagerLocationProvider.dart';
 import 'package:constructionproject/Manger/manager_provider/atendence_provider.dart';
 import 'package:constructionproject/Manger/manager_provider/manager_provider.dart';
+import 'package:constructionproject/Manger/Provider/ManagerLocationProvider.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
