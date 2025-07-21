@@ -1,4 +1,7 @@
+import 'package:constructionproject/profile/screens/Profile_page.dart';
 import 'package:flutter/material.dart';
+
+import '../../Worker/Screens/worker_list_page.dart';
 
 class AppDrawer extends StatelessWidget {
   final int selectedIndex;
@@ -44,11 +47,24 @@ class AppDrawer extends StatelessWidget {
             ),
             _DrawerItem(
               icon: Icons.person,
-              label: 'Profile',
+              label: 'My Workers',
               selected: selectedIndex == 2,
               onTap: () {
                 Navigator.of(context).pop();
-                onSelect(2);
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => WorkerListPage()),
+                );
+              },
+            ),
+            _DrawerItem(
+              icon: Icons.account_circle,
+              label: 'Profile',
+              selected: selectedIndex == 3,
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfilePage()),
+                );
               },
             ),
             const Spacer(),

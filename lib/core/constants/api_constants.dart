@@ -1,7 +1,7 @@
 class ApiConstants {
   // Base URLs
   static const String productionBaseUrl = 'https://your-api-url.com/api';
-  static const String localBaseUrl = 'http://192.168.1.225:3000';
+  static const String localBaseUrl = 'http://192.168.115.19:3000';
 
   // Use this to switch between environments
   static const String baseUrl = localBaseUrl; // Change to productionBaseUrl for production
@@ -10,17 +10,20 @@ class ApiConstants {
   static const String loginEndpoint = '/auth/login';
   static const String registerEndpoint = '/auth/register';
   static const String logoutEndpoint = '/auth/logout';
-  static const String refreshTokenEndpoint = '/auth/refresh-token';
+  static const String refreshTokenEndpoint = '/auth/refresh';
   static const String forgotPasswordEndpoint = '/auth/forgot-password';
   static const String resetPasswordEndpoint = '/auth/reset-password';
   static const String verifyEmailEndpoint = '/auth/verify-email';
   static const String resendVerificationEndpoint = '/auth/resend-verification';
 
   // User Endpoints
-  static const String userProfileEndpoint = '/user/profile';
-  static const String updateProfileEndpoint = '/user/profile';
+
   static const String changePasswordEndpoint = '/user/change-password';
   static const String deleteAccountEndpoint = '/user/delete-account';
+
+  //Profile Endpoints
+  static const String userProfileEndpoint = '/users/profile';
+  static const String updateProfileEndpoint = '/users/profile';
 
   // Request Headers
   static const Map<String, String> defaultHeaders = {

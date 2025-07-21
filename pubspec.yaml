@@ -40,9 +40,12 @@ dependencies:
   http: ^1.2.0
 
 
+
   google_fonts: ^6.2.1
   # Icons
   flutter_svg: ^2.0.7
+
+  shared_preferences: ^2.5.3
 
   # State Management
   provider: ^6.1.5
@@ -53,16 +56,19 @@ dependencies:
 
   # HTTP requests
   dio: ^5.8.0+1
+  url_launcher: ^6.2.5
 
   # Secure Storage
   flutter_secure_storage: ^9.2.4
 
   # Navigation
   go_router: ^12.1.1
-
+  socket_io_client: ^2.0.3
+  geolocator: ^10.1.0
   # Utilities
   equatable: ^2.0.5
   json_annotation: ^4.8.1
+  image_picker: ^1.1.2
 
 
 dev_dependencies:

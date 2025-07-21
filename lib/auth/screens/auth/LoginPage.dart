@@ -1,10 +1,10 @@
+import 'package:constructionproject/auth/models/auth_models.dart';
+import 'package:constructionproject/auth/Providers/auth_provider.dart';
+import 'package:constructionproject/auth/Widgets/Forms/custom_text%20_field.dart';
 import 'package:constructionproject/core/constants/app_colors.dart';
+import 'package:constructionproject/core/utils/validators.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../Models/auth_models.dart';
-import '../../Providers/auth_provider.dart';
-import '../../Widgets/Forms/custom_text _field.dart';
-import '../../core/utils/validators.dart';
 
 
 class LoginScreen extends StatefulWidget {
@@ -42,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final success = await authProvider.login(loginRequest);
 
     if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed('/dashboard');
+      Navigator.of(context).pushReplacementNamed('/home');
     }
   }
 
@@ -57,18 +57,10 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 40),
-
-              // Logo and Title
               _buildHeader(),
-
               const SizedBox(height: 48),
-
-              // Login Form
               _buildLoginForm(),
-
               const SizedBox(height: 24),
-
-              // Register Link
               _buildRegisterLink(),
             ],
           ),
@@ -120,7 +112,6 @@ class _LoginScreenState extends State<LoginScreen> {
           key: _formKey,
           child: Column(
             children: [
-              // Email Field
               CustomTextField(
                 label: 'Email Address',
                 hint: 'Enter your email',
@@ -130,10 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 validator: Validators.email,
                 required: true,
               ),
-
               const SizedBox(height: 20),
-
-              // Password Field
               CustomTextField(
                 label: 'Password',
                 hint: 'Enter your password',
@@ -153,10 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 validator: Validators.password,
                 required: true,
               ),
-
               const SizedBox(height: 16),
-
-              // Remember Me and Forgot Password
               Row(
                 children: [
                   Checkbox(
@@ -178,10 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 32),
-
-              // Error Message
               if (authProvider.errorMessage != null) ...[
                 Container(
                   width: double.infinity,
@@ -199,8 +181,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
               ],
-
-              // Login Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
