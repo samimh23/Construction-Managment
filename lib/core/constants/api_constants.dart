@@ -1,7 +1,9 @@
 class ApiConstants {
   // Base URLs
   static const String productionBaseUrl = 'https://your-api-url.com/api';
-  static const String localBaseUrl = 'http://192.168.115.4:3000';
+
+  static const String localBaseUrl = 'http://192.168.115.19:3000';
+
 
   // Use this to switch between environments
   static const String baseUrl = localBaseUrl; // Change to productionBaseUrl for production
