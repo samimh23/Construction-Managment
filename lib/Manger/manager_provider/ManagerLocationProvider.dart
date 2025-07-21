@@ -36,7 +36,7 @@ class ManagerLocationProvider extends ChangeNotifier {
   void connect(String managerId, String siteId) {
     if (_socket != null && _socket!.connected) return;
     print('[SOCKET] Connecting to Socket.IO as $managerId for site $siteId');
-    _socket = IO.io('http://localhost:3000', <String, dynamic>{
+    _socket = IO.io('http://192.168.115.19:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': true,
     });
