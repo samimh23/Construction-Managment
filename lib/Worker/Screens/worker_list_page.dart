@@ -777,35 +777,45 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
             child: Icon(roleIcon, color: roleColor, size: 20),
           ),
           const SizedBox(width: 12),
-          Text(
-            role.toUpperCase(),
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: roleColor,
-              letterSpacing: 0.5,
+          Flexible(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    role.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: roleColor,
+                      letterSpacing: 0.5,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: roleColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    count.toString(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: roleColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: roleColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              count.toString(),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: roleColor,
-              ),
-            ),
-          ),
           Expanded(
             child: Container(
               height: 1,
-              margin: const EdgeInsets.only(left: 12),
+              margin: const EdgeInsets.only(left: 8),
               color: roleColor.withOpacity(0.2),
             ),
           ),
@@ -885,8 +895,9 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Existing Row
+                    // Header Row: Avatar + Details + Trailing Icon
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
                           width: 56,
@@ -903,229 +914,249 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                           ),
                         ),
                         const SizedBox(width: 16),
-                        // Content
+                        // Content and trailing icon
                         Expanded(
-                          child: Column(
+                          child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '${worker.firstName} ${worker.lastName}',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1F2937),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: worker.isActive ? Colors.green : Colors.red,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    worker.isActive ? 'Active' : 'Inactive',
-                                    style: TextStyle(
-                                      color: worker.isActive ? Colors.green[700] : Colors.red[700],
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.2,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              if (worker.workerCode != null && worker.workerCode!.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2.0),
-                                  child: Text(
-                                    'ID: ${worker.workerCode}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[500],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  if (worker.email != null && worker.email!.isNotEmpty) ...[
-                                    Icon(Icons.email_outlined, size: 14, color: Colors.grey[500]),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        worker.email!,
-                                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                  if (worker.phone != null && worker.phone!.isNotEmpty) ...[
-                                    if (worker.email != null && worker.email!.isNotEmpty)
-                                      const SizedBox(width: 12),
-                                    Icon(Icons.phone_outlined, size: 14, color: Colors.grey[500]),
-                                    const SizedBox(width: 4),
+                              // Main details
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
                                     Text(
-                                      worker.phone!,
-                                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                      '${worker.firstName} ${worker.lastName}',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF1F2937),
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: worker.isActive ? Colors.green : Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          worker.isActive ? 'Active' : 'Inactive',
+                                          style: TextStyle(
+                                            color: worker.isActive ? Colors.green[700] : Colors.red[700],
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: 0.2,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    if (worker.workerCode != null && worker.workerCode!.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2.0),
+                                        child: Text(
+                                          'ID: ${worker.workerCode}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[500],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        if (worker.email != null && worker.email!.isNotEmpty) ...[
+                                          Icon(Icons.email_outlined, size: 14, color: Colors.grey[500]),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              worker.email!,
+                                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                        if (worker.phone != null && worker.phone!.isNotEmpty) ...[
+                                          if (worker.email != null && worker.email!.isNotEmpty)
+                                            const SizedBox(width: 12),
+                                          Icon(Icons.phone_outlined, size: 14, color: Colors.grey[500]),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              worker.phone!,
+                                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    // Daily Wage
+                                    if (worker.dailyWage != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2.0),
+                                        child: Text(
+                                          'Daily Wage: TND ${worker.dailyWage.toStringAsFixed(2)}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF10B981),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
                                   ],
-                                ],
-                              ),
-                              // Daily Wage
-                              if (worker.dailyWage != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2.0),
-                                  child: Text(
-                                    'Daily Wage: TND ${worker.dailyWage.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF10B981),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
                                 ),
+                              ),
+                              // Trailing icon
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8.0, top: 4.0),
+                                child: Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  size: 16,
+                                  color: Colors.grey[300],
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                        Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 16,
-                          color: Colors.grey[300],
-                        ),
                       ],
                     ),
-                    // Promote/Edit/Delete/Depromote Buttons
+                    // Action Buttons Row
                     Padding(
                       padding: const EdgeInsets.only(top: 12.0),
-                      child: Row(
-                        children: [
-                          if (worker.role.toLowerCase() == 'worker') ...[
-                            if (worker.email == null || worker.email!.isEmpty)
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.mail_outline),
-                                label: const Text("Add Credentials"),
-                                onPressed: () async {
-                                  final cred = await showDialog<Map<String, String>>(
-                                    context: context,
-                                    builder: (context) {
-                                      final emailController = TextEditingController();
-                                      final passwordController = TextEditingController();
-                                      return AlertDialog(
-                                        title: const Text("Add Credentials"),
-                                        content: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            TextField(
-                                              controller: emailController,
-                                              decoration: const InputDecoration(labelText: "Email"),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            if (worker.role.toLowerCase() == 'worker') ...[
+                              if (worker.email == null || worker.email!.isEmpty)
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.mail_outline),
+                                  label: const Text("Add Credentials"),
+                                  onPressed: () async {
+                                    final cred = await showDialog<Map<String, String>>(
+                                      context: context,
+                                      builder: (context) {
+                                        final emailController = TextEditingController();
+                                        final passwordController = TextEditingController();
+                                        return AlertDialog(
+                                          title: const Text("Add Credentials"),
+                                          content: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              TextField(
+                                                controller: emailController,
+                                                decoration: const InputDecoration(labelText: "Email"),
+                                              ),
+                                              TextField(
+                                                controller: passwordController,
+                                                decoration: const InputDecoration(labelText: "Password"),
+                                                obscureText: true,
+                                              ),
+                                            ],
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context),
+                                              child: const Text("Cancel"),
                                             ),
-                                            TextField(
-                                              controller: passwordController,
-                                              decoration: const InputDecoration(labelText: "Password"),
-                                              obscureText: true,
+                                            ElevatedButton(
+                                              onPressed: () {
+                                                Navigator.pop(context, {
+                                                  'email': emailController.text,
+                                                  'password': passwordController.text,
+                                                });
+                                              },
+                                              child: const Text("Save"),
                                             ),
                                           ],
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(context),
-                                            child: const Text("Cancel"),
-                                          ),
-                                          ElevatedButton(
-                                            onPressed: () {
-                                              Navigator.pop(context, {
-                                                'email': emailController.text,
-                                                'password': passwordController.text,
-                                              });
-                                            },
-                                            child: const Text("Save"),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                  if (cred != null && cred['email']!.isNotEmpty && cred['password']!.isNotEmpty) {
+                                        );
+                                      },
+                                    );
+                                    if (cred != null && cred['email']!.isNotEmpty && cred['password']!.isNotEmpty) {
+                                      try {
+                                        await Provider.of<WorkerProvider>(context, listen: false)
+                                            .addCredentialsToWorker(worker.id, cred['email']!, cred['password']!);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Credentials added successfully!')),
+                                        );
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Error: $e')),
+                                        );
+                                      }
+                                    }
+                                  },
+                                ),
+                              if (worker.email != null && worker.email!.isNotEmpty)
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.upgrade_rounded),
+                                  label: const Text("Promote to Manager"),
+                                  onPressed: () async {
+                                    final siteId = worker.assignedSite;
                                     try {
                                       await Provider.of<WorkerProvider>(context, listen: false)
-                                          .addCredentialsToWorker(worker.id, cred['email']!, cred['password']!);
+                                          .promoteWorkerToManager(worker.id, siteId);
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Credentials added successfully!')),
+                                        const SnackBar(content: Text('Promoted to manager!')),
                                       );
                                     } catch (e) {
+                                      String errorMessage = e.toString();
+                                      if (e is DioException && e.response?.statusCode == 409) {
+                                        final backendMsg = e.response?.data['message']?.toString() ?? '';
+                                        if (backendMsg.contains('already has a manager')) {
+                                          errorMessage = 'This site already has a manager. Depromote the current manager before promoting another.';
+                                        }
+                                      }
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Error: $e')),
+                                        SnackBar(content: Text(errorMessage)),
                                       );
                                     }
-                                  }
-                                },
-                              ),
-                            if (worker.email != null && worker.email!.isNotEmpty)
+                                  },
+                                ),
+                            ],
+                            if (worker.role.toLowerCase() == 'manager')
                               ElevatedButton.icon(
-                                icon: const Icon(Icons.upgrade_rounded),
-                                label: const Text("Promote to Manager"),
-                                onPressed: () async {
-                                  final siteId = worker.assignedSite;
-                                  try {
-                                    await Provider.of<WorkerProvider>(context, listen: false)
-                                        .promoteWorkerToManager(worker.id, siteId);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Promoted to manager!')),
-                                    );
-                                  } catch (e) {
-        String errorMessage = e.toString();
-        if (e is DioException && e.response?.statusCode == 409) {
-        final backendMsg = e.response?.data['message']?.toString() ?? '';
-        if (backendMsg.contains('already has a manager')) {
-        errorMessage = 'This site already has a manager. Depromote the current manager before promoting another.';
-        }
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage)),
-        );
-        }
-
-                                },
+                                icon: const Icon(Icons.arrow_downward_rounded),
+                                label: const Text("Depromote to Worker"),
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                                onPressed: () => _showDepromoteManagerDialog(context, worker),
                               ),
+                            IconButton(
+                              icon: const Icon(Icons.link),
+                              tooltip: "Assign to Site",
+                              onPressed: () => _showAssignWorkerDialog(context, worker.id),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit),
+                              tooltip: "Edit Worker",
+                              onPressed: () => _showEditWorkerDialog(context, worker),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              tooltip: "Delete Worker",
+                              onPressed: () => _showDeleteWorkerDialog(context, worker),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.bar_chart_rounded),
+                              tooltip: "Show Attendance Summary",
+                              onPressed: () => _showWorkerSummaryDialog(
+                                context,
+                                worker.id,
+                                '${worker.firstName} ${worker.lastName}',
+                              ),
+                            ),
                           ],
-                          if (worker.role.toLowerCase() == 'manager')
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.arrow_downward_rounded),
-                              label: const Text("Depromote to Worker"),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                              onPressed: () => _showDepromoteManagerDialog(context, worker),
-                            ),
-                          IconButton(
-                            icon: const Icon(Icons.link),
-                            tooltip: "Assign to Site",
-                            onPressed: () => _showAssignWorkerDialog(context, worker.id),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            tooltip: "Edit Worker",
-                            onPressed: () => _showEditWorkerDialog(context, worker),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            tooltip: "Delete Worker",
-                            onPressed: () => _showDeleteWorkerDialog(context, worker),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.bar_chart_rounded),
-                            tooltip: "Show Attendance Summary",
-                            onPressed: () => _showWorkerSummaryDialog(
-                              context,
-                              worker.id,
-                              '${worker.firstName} ${worker.lastName}',
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ],
