@@ -1,3 +1,4 @@
+import 'package:constructionproject/Manger/manager_provider/ManagerLocationProvider.dart';
 import 'package:constructionproject/Manger/manager_provider/atendence_provider.dart';
 import 'package:constructionproject/Manger/manager_provider/manager_provider.dart';
 import 'package:constructionproject/Manger/Provider/ManagerLocationProvider.dart';

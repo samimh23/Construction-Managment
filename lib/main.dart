@@ -1,6 +1,7 @@
 import 'package:constructionproject/Manger/Screens/manager_home_page.dart';
 import 'package:constructionproject/Manger/Service/attendance_service.dart';
 import 'package:constructionproject/Manger/Service/manager_service.dart';
+import 'package:constructionproject/Manger/manager_provider/ManagerLocationProvider.dart';
 import 'package:constructionproject/Manger/manager_provider/atendence_provider.dart';
 import 'package:constructionproject/Manger/manager_provider/manager_provider.dart';
 import 'package:constructionproject/Worker/Provider/worker_provider.dart';
@@ -75,10 +76,10 @@ class MyApp extends StatelessWidget {
           update: (_, workerService, __) => WorkerProvider(workerService),
         ),
 
+
         ChangeNotifierProvider(
           create: (_) => SiteProvider(SiteService())..fetchSites(),
         ),
-
         ProxyProvider2<Dio, AuthService, ManagerService>(
           update: (_, dio, authService, __) => ManagerService(dio, authService),
         ),
@@ -104,7 +105,9 @@ class MyApp extends StatelessWidget {
           update: (_, profileService, __) => ProfileProvider(profileService),
         ),
 
+
         // --- MANAGER LOCATION PROVIDER for WebSocket real-time ---
+
         ChangeNotifierProvider(
           create: (_) => ManagerLocationProvider(),
         ),
