@@ -1,16 +1,14 @@
+import 'package:constructionproject/Manger/manager_provider/ManagerLocationProvider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:latlong2/latlong.dart';
-
-import '../../Core/Constants/app_colors.dart';
-import '../../Provider/ConstructionSite/Provider.dart';
-import '../../Model/Constructionsite/ConstructionSiteModel.dart';
-import '../../Widget/Sites/DeleteSite.dart';
-import '../../Widget/Sites/SiteList.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../Widget/Sites/SiteMap.dart';
+import '../../Widget/Sites/SiteList.dart';
+import '../../Model/Constructionsite/ConstructionSiteModel.dart';
+import '../../Provider/ConstructionSite/Provider.dart';
+import '../../Widget/Sites/DeleteSite.dart';
 import '../../Widget/Sites/UpdateSiteDialog.dart';
-import 'Details.dart';
-
+import 'package:latlong2/latlong.dart';
 
 class SitesScreen extends StatefulWidget {
   final int selectedTab;
@@ -21,6 +19,16 @@ class SitesScreen extends StatefulWidget {
 }
 
 class _SitesScreenState extends State<SitesScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // THIS IS THE REQUIRED FIX!
+    Future.microtask(() {
+      Provider.of<ManagerLocationProvider>(context, listen: false)
+          .connect('', ''); // Use correct siteId if needed, or '' for dashboard
+    });
+  }
+
   void _showAddSiteDialog(BuildContext context, LatLng tappedPoint) {
     showDialog(
       context: context,
