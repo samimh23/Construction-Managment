@@ -1,3 +1,4 @@
+import 'package:constructionproject/auth/Providers/auth_provider.dart';
 import 'package:constructionproject/profile/provider/profile_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -450,85 +451,82 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildMobileLayout(BuildContext context, ProfileProvider provider) {
-    return Scaffold(
-
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Mobile profile header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.blue[600]!, Colors.blue[400]!],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Mobile profile header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.blue[600]!, Colors.blue[400]!],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: Colors.white,
-                    child: Text(
-                      provider.profile!.firstName[0].toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue[600],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '${provider.profile!.firstName} ${provider.profile!.lastName}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      provider.profile!.role,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(height: 16),
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  backgroundColor: Colors.white,
+                  child: Text(
+                    provider.profile!.firstName[0].toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue[600],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '${provider.profile!.firstName} ${provider.profile!.lastName}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    provider.profile!.role,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
 
-            // Quick Info Card
-            _buildMobileQuickInfo(provider),
-            const SizedBox(height: 16),
+          // Quick Info Card
+          _buildMobileQuickInfo(provider),
+          const SizedBox(height: 16),
 
-            // Personal Information Card
-            _buildMobilePersonalInfo(provider),
-            const SizedBox(height: 16),
+          // Personal Information Card
+          _buildMobilePersonalInfo(provider),
+          const SizedBox(height: 16),
 
-            // Account Settings Card
-            _buildMobileAccountSettings(provider),
-            const SizedBox(height: 16),
+          // Account Settings Card
+          _buildMobileAccountSettings(provider),
+          const SizedBox(height: 16),
 
-            // Actions Card
-            _buildMobileActions(provider),
-            const SizedBox(height: 24),
-          ],
-        ),
+          // Actions Card
+          _buildMobileActions(provider),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
@@ -962,18 +960,99 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  void _handleLogout() {
-    // Add your logout logic here
-    // For example:
-    // Provider.of<AuthProvider>(context, listen: false).logout();
-    // Navigator.of(context).pushReplacementNamed('/login');
+  void _handleLogout() async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Logging out...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
 
-    // Temporary implementation - you'll need to replace this with your actual logout logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Logout functionality - implement your logout logic here'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+      // Get providers
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+
+      // Perform logout
+      await authProvider.logout();
+
+      // Clear profile data
+      profileProvider.clearProfile();
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Navigate to login page and clear all previous routes
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          '/login',
+              (route) => false,
+        );
+      }
+
+    } catch (e) {
+      // Close loading dialog if it's still open
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error dialog with retry option
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red[600]),
+                  const SizedBox(width: 8),
+                  const Text('Logout Error'),
+                ],
+              ),
+              content: Text('Failed to logout: ${e.toString()}'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _handleLogout(); // Retry logout
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[600],
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Retry'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    }
   }
 }

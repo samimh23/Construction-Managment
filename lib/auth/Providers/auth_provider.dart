@@ -93,10 +93,13 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+// Add this method to your existing AuthProvider class
 
   void clearError() {
-    _errorMessage = null;
-    notifyListeners();
+    if (_errorMessage != null) {
+      _errorMessage = null;
+      notifyListeners();
+    }
   }
 
   void _setLoading() {

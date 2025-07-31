@@ -149,6 +149,7 @@ class MyApp extends StatelessWidget {
             }
           },
           '/profile': (context) => const ProfilePage(),
+          '/owner': (context) => const HomeScreen(),
         },
       ),
     );
