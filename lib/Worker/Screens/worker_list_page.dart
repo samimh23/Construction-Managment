@@ -12,6 +12,30 @@ class WorkSummary {
   WorkSummary({required this.date, required this.totalHours});
 }
 
+class GridPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.1)
+      ..strokeWidth = 1;
+
+    const double spacing = 30.0;
+
+    // Draw vertical lines
+    for (double i = 0; i < size.width; i += spacing) {
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
+    }
+
+    // Draw horizontal lines
+    for (double i = 0; i < size.height; i += spacing) {
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
+}
+
 class WorkerListPage extends StatefulWidget {
   const WorkerListPage({super.key});
 
@@ -334,6 +358,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
       },
     );
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -341,7 +366,6 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
       body: CustomScrollView(
         slivers: [
           // Modern App Bar with Statistics
-          // ...unchanged...
           SliverAppBar(
             expandedHeight: 280,
             floating: false,
@@ -364,17 +388,13 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                 ),
                 child: Stack(
                   children: [
-                    // Background pattern
+                    // Background pattern - Fixed with custom painter
                     Positioned.fill(
                       child: Opacity(
                         opacity: 0.1,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            image: DecorationImage(
-                              image: NetworkImage('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><g fill-rule="evenodd"><g fill="%23ffffff" fill-opacity="0.1"><polygon points="36,34 6,34 6,4 36,4"/></g></g></svg>'),
-                              repeat: ImageRepeat.repeat,
-                            ),
-                          ),
+                        child: CustomPaint(
+                          painter: GridPatternPainter(),
+                          size: Size.infinite,
                         ),
                       ),
                     ),
@@ -412,29 +432,61 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                           ),
                           const SizedBox(height: 16),
                           // Statistics
-                          Consumer<WorkerProvider>(
-                            builder: (context, provider, child) {
-                              if (provider.workers.isEmpty) return const SizedBox();
+                      // Replace the statistics section in your build method with this:
+                      Consumer<WorkerProvider>(
+                        builder: (context, provider, child) {
+                          if (provider.workers.isEmpty) return const SizedBox();
 
-                              final totalWorkers = provider.workers.length;
-                              final activeWorkers = provider.workers.where((w) => w.isActive).length;
+                          final totalWorkers = provider.workers.length;
+                          final activeWorkers = provider.workers.where((w) => w.isActive).length;
+                          final managers = provider.workers.where((w) => w.role.toLowerCase() == 'manager').length;
+                          final workers = provider.workers.where((w) => w.role.toLowerCase() == 'worker').length;
 
-                              return FadeTransition(
-                                opacity: _fadeAnimation,
-                                child: Row(
-                                  children: [
-                                    _buildStatCard('Total', totalWorkers.toString(), Icons.people_rounded),
-                                    const SizedBox(width: 12),
-                                    _buildStatCard('Active', activeWorkers.toString(), Icons.check_circle_rounded),
-                                    const SizedBox(width: 12),
-                                    _buildStatCard('Managers', provider.workers.where((w) => w.role.toLowerCase() == 'manager').length.toString(), Icons.supervisor_account_rounded),
-                                    const SizedBox(width: 12),
-                                    _buildStatCard('Workers', provider.workers.where((w) => w.role.toLowerCase() == 'worker').length.toString(), Icons.construction_rounded),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
+                          return FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                // Use different layouts based on screen width
+                                if (constraints.maxWidth < 300) {
+                                  // Very small screens - 2x2 grid
+                                  return Column(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          _buildResponsiveStatCard('Total', totalWorkers.toString(), Icons.people_rounded),
+                                          const SizedBox(width: 8),
+                                          _buildResponsiveStatCard('Active', activeWorkers.toString(), Icons.check_circle_rounded),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          _buildResponsiveStatCard('Managers', managers.toString(), Icons.supervisor_account_rounded),
+                                          const SizedBox(width: 8),
+                                          _buildResponsiveStatCard('Workers', workers.toString(), Icons.construction_rounded),
+                                        ],
+                                      ),
+                                    ],
+                                  );
+                                } else {
+                                  // Normal screens - single row
+                                  return Row(
+                                    children: [
+                                      _buildResponsiveStatCard('Total', totalWorkers.toString(), Icons.people_rounded),
+                                      const SizedBox(width: 8),
+                                      _buildResponsiveStatCard('Active', activeWorkers.toString(), Icons.check_circle_rounded),
+                                      const SizedBox(width: 8),
+                                      _buildResponsiveStatCard('Managers', managers.toString(), Icons.supervisor_account_rounded),
+                                      const SizedBox(width: 8),
+                                      _buildResponsiveStatCard('Workers', workers.toString(), Icons.construction_rounded),
+                                    ],
+                                  );
+                                }
+                              },
+                            ),
+                          );
+                        },
+                      ),
                         ],
                       ),
                     ),
@@ -459,13 +511,12 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
               ),
             ],
           ),
-          // Search Bar and Role Filter (unchanged)
+          // Search Bar and Role Filter
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // ...existing search and filter...
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -566,7 +617,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
               ),
             ),
           ),
-          // Worker List updated
+          // Worker List
           Consumer<WorkerProvider>(
             builder: (context, provider, child) {
               if (provider.isLoading) {
@@ -692,10 +743,12 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
           ),
         ],
       ),
+
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatingActionButton.extended(
+            heroTag: "worker_list_create_worker_fab",
             onPressed: () => _showCreateWorkerDialog(context),
             backgroundColor: const Color(0xFF10B981),
             foregroundColor: Colors.white,
@@ -706,21 +759,8 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
-          const SizedBox(height: 16),
-          FloatingActionButton.extended(
-            onPressed: () {
-              context.read<WorkerProvider>().loadWorkersByOwner();
-              context.read<SiteProvider>().fetchSites();
-            },
-            backgroundColor: const Color(0xFF3B82F6),
-            foregroundColor: Colors.white,
-            elevation: 8,
-            icon: const Icon(Icons.refresh_rounded),
-            label: const Text(
-              'Refresh',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
+
+
         ],
       ),
     );
@@ -729,29 +769,37 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
   Widget _buildStatCard(String label, String value, IconData icon) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8), // Reduced padding for mobile
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withOpacity(0.2)),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min, // Add this
           children: [
-            Icon(icon, color: Colors.white, size: 20),
+            Icon(icon, color: Colors.white, size: 18), // Slightly smaller icon
             const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            FittedBox( // Wrap value in FittedBox
+              child: Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16, // Slightly smaller font
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
+            const SizedBox(height: 2),
+            FittedBox( // Wrap label in FittedBox
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 10, // Smaller font for labels
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
               ),
             ),
           ],
@@ -759,7 +807,50 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
       ),
     );
   }
-
+  Widget _buildResponsiveStatCard(String label, String value, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   Widget _buildRoleHeader(String role, int count) {
     final roleColor = _getRoleColor(role);
     final roleIcon = _getRoleIcon(role);
@@ -823,6 +914,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
       ),
     );
   }
+
   void _showDepromoteManagerDialog(BuildContext context, dynamic worker) {
     showDialog(
       context: context,
@@ -857,7 +949,6 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
       },
     );
   }
-
 
   Widget _buildWorkerCard(BuildContext context, dynamic worker) {
     final roleColor = _getRoleColor(worker.role);
@@ -1215,76 +1306,80 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Worker'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: firstNameController,
-                  decoration: const InputDecoration(labelText: 'First Name'),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Edit Worker'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: firstNameController,
+                      decoration: const InputDecoration(labelText: 'First Name'),
+                    ),
+                    TextField(
+                      controller: lastNameController,
+                      decoration: const InputDecoration(labelText: 'Last Name'),
+                    ),
+                    TextField(
+                      controller: phoneController,
+                      decoration: const InputDecoration(labelText: 'Phone'),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    TextField(
+                      controller: jobTitleController,
+                      decoration: const InputDecoration(labelText: 'Job Title'),
+                    ),
+                    TextField(
+                      controller: dailyWageController,
+                      decoration: const InputDecoration(labelText: 'Daily Wage (TND)'),
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                    ),
+                    SwitchListTile(
+                      title: const Text('Active'),
+                      value: isActive,
+                      onChanged: (value) {
+                        setState(() {
+                          isActive = value;
+                        });
+                      },
+                    ),
+                  ],
                 ),
-                TextField(
-                  controller: lastNameController,
-                  decoration: const InputDecoration(labelText: 'Last Name'),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
                 ),
-                TextField(
-                  controller: phoneController,
-                  decoration: const InputDecoration(labelText: 'Phone'),
-                  keyboardType: TextInputType.phone,
-                ),
-                TextField(
-                  controller: jobTitleController,
-                  decoration: const InputDecoration(labelText: 'Job Title'),
-                ),
-                TextField(
-                  controller: dailyWageController,
-                  decoration: const InputDecoration(labelText: 'Daily Wage (TND)'),
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                ),
-                SwitchListTile(
-                  title: const Text('Active'),
-                  value: isActive,
-                  onChanged: (value) {
-                    setState(() {
-                      isActive = value;
-                    });
+                ElevatedButton(
+                  onPressed: () async {
+                    try {
+                      await Provider.of<WorkerProvider>(context, listen: false).editWorker(
+                        workerId: worker.id,
+                        firstName: firstNameController.text,
+                        lastName: lastNameController.text,
+                        phone: phoneController.text,
+                        jobTitle: jobTitleController.text,
+                        dailyWage: double.tryParse(dailyWageController.text) ?? worker.dailyWage ?? 0,
+                        isActive: isActive,
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Worker updated successfully!')),
+                      );
+                      Navigator.pop(context);
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
                   },
+                  child: const Text('Save'),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  await Provider.of<WorkerProvider>(context, listen: false).editWorker(
-                    workerId: worker.id,
-                    firstName: firstNameController.text,
-                    lastName: lastNameController.text,
-                    phone: phoneController.text,
-                    jobTitle: jobTitleController.text,
-                    dailyWage: double.tryParse(dailyWageController.text) ?? worker.dailyWage ?? 0,
-                    isActive: isActive,
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Worker updated successfully!')),
-                  );
-                  Navigator.pop(context);
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
+            );
+          },
         );
       },
     );

@@ -214,6 +214,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
 
   Widget _buildFloatingActionButton() {
     return FloatingActionButton.extended(
+      heroTag: "site_details_save_fab", // 🔥 ADDED THIS LINE!
       onPressed: _updateSite,
       label: const Text("Save Changes"),
       icon: const Icon(Icons.save_rounded),

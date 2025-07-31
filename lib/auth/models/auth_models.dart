@@ -82,21 +82,29 @@ class AuthResponse extends Equatable {
     required this.refreshToken,
   });
 
-  factory AuthResponse.fromJson(Map<String, dynamic> json) {
-    final token = json['access_token'];
-    final refreshToken = json['refresh_token'];
+  factory AuthResponse.fromJson(
+      Map<String, dynamic> json, {
+        User? previousUser,
+        String? previousRefreshToken,
+      }) {
+    final token = json['access_token'] ?? json['token'];
+    final refreshToken = json['refresh_token'] ?? json['refreshToken'] ?? previousRefreshToken;
     final userJson = json['user'];
+    final user = userJson != null
+        ? User.fromJson(userJson as Map<String, dynamic>)
+        : previousUser;
+
     if (token == null) {
       throw Exception("Missing 'access_token' in response: $json");
     }
     if (refreshToken == null) {
-      throw Exception("Missing 'refresh_token' in response: $json");
+      throw Exception("Missing 'refresh_token' in response and no fallback provided: $json");
     }
-    if (userJson == null) {
-      throw Exception("Missing 'user' in response: $json");
+    if (user == null) {
+      throw Exception("Missing 'user' in response and no fallback provided: $json");
     }
     return AuthResponse(
-      user: User.fromJson(userJson as Map<String, dynamic>),
+      user: user,
       token: token as String,
       refreshToken: refreshToken as String,
     );
