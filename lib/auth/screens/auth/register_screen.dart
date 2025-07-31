@@ -3,6 +3,7 @@ import 'package:constructionproject/auth/models/auth_models.dart';
 import 'package:constructionproject/auth/Providers/auth_provider.dart';
 import 'package:constructionproject/auth/Widgets/Forms/custom_text%20_field.dart';
 import 'package:constructionproject/auth/Widgets/Forms/password_strength_indicator.dart';
+import 'package:constructionproject/auth/Widgets/auth_responsive_layout.dart';
 import 'package:constructionproject/core/utils/validators.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -82,32 +83,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 20),
+    return AuthResponsiveLayout(
+      child: _buildRegisterContent(),
+    );
+  }
 
-              // Header
-              _buildHeader(),
+  Widget _buildRegisterContent() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenHeight = MediaQuery.of(context).size.height;
+        final isSmallScreen = screenHeight < 600;
 
-              const SizedBox(height: 32),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            _buildHeader(),
 
-              // Register Form
-              _buildRegisterForm(),
+            SizedBox(height: isSmallScreen ? 24 : 32),
 
-              const SizedBox(height: 24),
+            // Register Form
+            _buildRegisterForm(),
 
-              // Login Link
-              _buildLoginLink(),
-            ],
-          ),
-        ),
-      ),
+            SizedBox(height: isSmallScreen ? 16 : 24),
+
+            // Login Link
+            _buildLoginLink(),
+          ],
+        );
+      },
     );
   }
 
