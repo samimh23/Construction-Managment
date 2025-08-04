@@ -23,9 +23,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'Construction/Provider/ConstructionSite/Provider.dart';
 import 'Construction/service/ConstructionSiteService.dart';
 import 'Construction/screen/ConstructionSite/Home.dart';
+import 'Manger/manager_provider/ManagerLocationProvider.dart';
 
 // --- Add this import for manager location provider ---
-import 'Manger/Provider/ManagerLocationProvider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

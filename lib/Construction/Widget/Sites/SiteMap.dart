@@ -1,8 +1,11 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import '../../../Manger/Provider/ManagerLocationProvider.dart';
+import 'package:http/http.dart' as http;
+import '../../../Manger/manager_provider/ManagerLocationProvider.dart';
 import '../../Core/Constants/app_colors.dart';
 import '../../Provider/ConstructionSite/Provider.dart';
 import '../../screen/ConstructionSite/Details.dart';
@@ -17,7 +20,12 @@ class SiteMap extends StatefulWidget {
 }
 
 class _SiteMapState extends State<SiteMap> {
-  ManagerLocation? selectedManager;
+  final MapController _mapController = MapController();
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _searchResults = [];
+  LatLng? _searchedLatLng;
+  Timer? _debounce;
+  bool _isLoading = false;
 
   void _showManagerInfo(ManagerLocation manager) {
     showDialog(
@@ -47,12 +55,11 @@ class _SiteMapState extends State<SiteMap> {
   }
 
   bool _isManagerOnAssignedSite(ManagerLocation manager, SiteProvider siteProvider) {
-    // Find the assigned site
     final assignedSite = siteProvider.sites.firstWhere(
           (site) => site.id == manager.siteId,
+    
     );
     if (assignedSite == null) return false;
-    // Calculate distance between manager location and site's center
     final managerLatLng = LatLng(manager.latitude, manager.longitude);
     final siteCenter = LatLng(
       assignedSite.geofenceCenterLat ?? assignedSite.latitude,
@@ -61,8 +68,52 @@ class _SiteMapState extends State<SiteMap> {
     final distance = Distance().as(
         LengthUnit.Meter, managerLatLng, siteCenter
     );
-    // If within geofence radius, manager is on the site
     return assignedSite.geofenceRadius != null && distance <= assignedSite.geofenceRadius!;
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      _searchPlace(query);
+    });
+  }
+
+  Future<void> _searchPlace(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults.clear();
+        _isLoading = false;
+      });
+      return;
+    }
+    setState(() {
+      _isLoading = true;
+    });
+    final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&addressdetails=1&limit=5');
+    final response = await http.get(url, headers: {
+      'User-Agent': 'YourApp (your@email.com)'
+    });
+
+    if (response.statusCode == 200) {
+      final List data = json.decode(response.body);
+      setState(() {
+        _searchResults = List<Map<String, dynamic>>.from(data);
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _searchResults = [];
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -74,7 +125,9 @@ class _SiteMapState extends State<SiteMap> {
         final allLatLngs = [...siteLatLngs, ...managerLatLngs];
 
         LatLngBounds? bounds;
-        if (allLatLngs.isNotEmpty) {
+        if (_searchedLatLng != null) {
+          bounds = LatLngBounds.fromPoints([_searchedLatLng!]);
+        } else if (allLatLngs.isNotEmpty) {
           bounds = LatLngBounds.fromPoints(allLatLngs);
         }
 
@@ -123,11 +176,12 @@ class _SiteMapState extends State<SiteMap> {
         return Stack(
           children: [
             FlutterMap(
+              mapController: _mapController,
               options: MapOptions(
                 bounds: bounds,
-                center: bounds == null
+                center: _searchedLatLng ?? (bounds == null
                     ? const LatLng(36.8065, 10.1815)
-                    : null,
+                    : null),
                 zoom: siteProvider.currentZoom,
                 minZoom: 5,
                 maxZoom: 19,
@@ -141,7 +195,6 @@ class _SiteMapState extends State<SiteMap> {
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-
                   userAgentPackageName: 'com.example.constructionproject',
                 ),
                 if (siteProvider.currentZoom >= 15)
@@ -162,6 +215,13 @@ class _SiteMapState extends State<SiteMap> {
                   ),
                 MarkerLayer(
                   markers: [
+                    if (_searchedLatLng != null)
+                      Marker(
+                        point: _searchedLatLng!,
+                        width: 30,
+                        height: 30,
+                        child: Icon(Icons.location_on, color: Colors.purple, size: 30),
+                      ),
                     ...siteProvider.sites.map((site) {
                       final isZoomedIn = siteProvider.currentZoom >= 15;
                       return Marker(
@@ -184,6 +244,80 @@ class _SiteMapState extends State<SiteMap> {
                   ],
                 ),
               ],
+            ),
+            Positioned(
+              top: 32,
+              left: 12,
+              right: 12,
+              child: Column(
+                children: [
+                  Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(8),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: "Search for a place...",
+                        prefixIcon: Icon(Icons.search),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                          icon: Icon(Icons.clear),
+                          onPressed: () {
+                            setState(() {
+                              _searchController.clear();
+                              _searchResults.clear();
+                              _searchedLatLng = null;
+                            });
+                          },
+                        )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(12),
+                      ),
+                      onChanged: _onSearchChanged,
+                      onSubmitted: (v) => _searchPlace(v),
+                    ),
+                  ),
+                  if (_isLoading)
+                    Container(
+                      margin: EdgeInsets.only(top: 4),
+                      child: LinearProgressIndicator(),
+                    ),
+                  if (_searchResults.isNotEmpty)
+                    Container(
+                      constraints: BoxConstraints(maxHeight: 180),
+                      margin: EdgeInsets.only(top: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(blurRadius: 4, color: Colors.black12),
+                        ],
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _searchResults.length,
+                        itemBuilder: (ctx, idx) {
+                          final item = _searchResults[idx];
+                          final displayName = item['display_name'] ?? '';
+                          return ListTile(
+                            title: Text(displayName, maxLines: 2, overflow: TextOverflow.ellipsis),
+                            onTap: () {
+                              final lat = double.parse(item['lat']);
+                              final lon = double.parse(item['lon']);
+                              setState(() {
+                                _searchedLatLng = LatLng(lat, lon);
+                                _searchController.text = displayName;
+                                _searchResults.clear();
+                              });
+                              _mapController.move(LatLng(lat, lon), 16.0);
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
             ),
             Positioned(
               bottom: 10,

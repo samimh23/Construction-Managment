@@ -1,4 +1,5 @@
 import 'package:constructionproject/Manger/manager_provider/ManagerLocationProvider.dart';
+import 'package:constructionproject/auth/services/auth/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -23,10 +24,17 @@ class _SitesScreenState extends State<SitesScreen> {
   @override
   void initState() {
     super.initState();
-    // THIS IS THE REQUIRED FIX!
-    Future.microtask(() {
-      Provider.of<ManagerLocationProvider>(context, listen: false)
-          .connect('', ''); // Use correct siteId if needed, or '' for dashboard
+    Future.microtask(() async {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final user = await authService.getCurrentUser();
+      final ownerId = user?.id ?? '';
+      final managerProvider = Provider.of<ManagerLocationProvider>(context, listen: false);
+
+      // As owner, you only need to send your id to request your managers
+      managerProvider.connectAsOwner();
+      managerProvider.onConnected(() {
+        managerProvider.requestManagersForOwner(ownerId);
+      });
     });
   }
 
