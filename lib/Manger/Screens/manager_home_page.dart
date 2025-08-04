@@ -1,11 +1,13 @@
+import 'dart:convert';
+import 'package:constructionproject/Construction/Core/Constants/api_constants.dart';
 import 'package:constructionproject/Manger/manager_provider/ManagerLocationProvider.dart';
 import 'package:constructionproject/Manger/manager_provider/atendence_provider.dart';
 import 'package:constructionproject/Manger/manager_provider/manager_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
-
 import '../../auth/services/auth/auth_service.dart';
 
 class ManagerHomeScreen extends StatefulWidget {
@@ -19,18 +21,50 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   final _codeController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   bool _locationStarted = false;
+  String? ownerId;
 
   @override
   void initState() {
     super.initState();
     Future.microtask(() async {
       await context.read<ManagerDataProvider>().loadSiteAndWorkers();
-      await _startLocationTracking();
+      await _fetchManagerAndStoreOwnerId();
     });
   }
 
-  Future<void> _startLocationTracking() async {
-    if (_locationStarted) return;
+  Future<void> _fetchManagerAndStoreOwnerId() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final currentUser = await authService.getCurrentUser();
+      final managerId = currentUser?.id ?? "unknown";
+
+      // Use your backend URL here
+      final url = Uri.parse('${ApiConstants.baseUrl}users/$managerId');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        // Expecting data to be a manager object with a "createdBy" field
+        final fetchedOwnerId = data['createdBy']?.toString();
+        setState(() {
+          ownerId = fetchedOwnerId;
+        });
+        // Now start location tracking/socket with ownerId
+        await _startLocationTracking(ownerId: fetchedOwnerId);
+      } else {
+        setState(() {
+          ownerId = null;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        ownerId = null;
+      });
+    }
+  }
+
+  Future<void> _startLocationTracking({required String? ownerId}) async {
+    if (_locationStarted || ownerId == null) return;
     _locationStarted = true;
 
     try {
@@ -51,20 +85,25 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
       final siteId = site != null ? site.id : "unknown";
       final locationProvider = Provider.of<ManagerLocationProvider>(context, listen: false);
 
-      locationProvider.connect(managerId, siteId);
+      // Connect manager to socket with ownerId
+      locationProvider.connectAsManager(managerId, siteId, ownerId);
 
-      Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 10,
-        ),
-      ).listen((Position position) {
-        locationProvider.sendLocation(
-          managerId: managerId,
-          siteId: siteId,
-          latitude: position.latitude,
-          longitude: position.longitude,
-        );
+      // Only start sending location after socket connects!
+      locationProvider.onConnected(() {
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10,
+          ),
+        ).listen((Position position) {
+          locationProvider.sendLocation(
+            managerId: managerId,
+            siteId: siteId,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            ownerId: ownerId, // <-- Send ownerId with every location update!
+          );
+        });
       });
     } catch (e) {
       debugPrint("Location error: $e");
