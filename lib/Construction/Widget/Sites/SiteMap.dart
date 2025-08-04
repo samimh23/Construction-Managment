@@ -1,6 +1,6 @@
 import 'dart:async';
 
-
+import 'package:constructionproject/Construction/service/nominatim_search_service.dart';
 import 'package:constructionproject/Manger/manager_provider/ManagerLocationProvider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +29,14 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
   // Pre-built widgets (created once, reused)
   late final Widget _greenManagerWidget;
   late final Widget _redManagerWidget;
+
+  // Search-related variables
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  List<SearchResult> _searchResults = [];
+  bool _isSearching = false;
+  bool _showSearchResults = false;
+  Timer? _searchDebouncer;
 
   // Current state - NO provider calls in these
   LatLngBounds? _viewBounds;
@@ -69,6 +77,9 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     _siteProviderRef?.removeListener(_onDataChanged);
     _managerProviderRef?.removeListener(_onDataChanged);
     _moveTimer?.cancel();
+    _searchDebouncer?.cancel();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -132,6 +143,27 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     if (mounted && !_isMoving) {
       setState(() {});
     }
+  }
+
+  void _onSearchChanged(String query) {
+    _searchDebouncer?.cancel();
+
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults.clear();
+        _showSearchResults = false;
+        _isSearching = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+    });
+
+    _searchDebouncer = Timer(const Duration(milliseconds: 800), () {
+      _performSearch(query.trim());
+    });
   }
 
   bool _isPointVisible(double lat, double lng) {
@@ -199,7 +231,7 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
       markerCount++;
     }
 
-    // Build geofence circles ONLY at zoom 13.4 and above
+    // Build geofence circles ONLY at zoom 8 and above
     if (_zoom >= 8) {
       for (final site in _sitesSnapshot) {
         if (!_isPointVisible(site.latitude, site.longitude)) continue;
@@ -260,7 +292,7 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     // Debug output
     if (kDebugMode) {
       final sitesWithRadius = _sitesSnapshot.where((s) => s.geofenceRadius != null && s.geofenceRadius! > 0).length;
-      print('Built ${circles.length} circles from $sitesWithRadius sites with radius at zoom $_zoom (showing circles: ${_zoom >= 13.4})');
+      print('Built ${circles.length} circles from $sitesWithRadius sites with radius at zoom $_zoom (showing circles: ${_zoom >= 8})');
     }
   }
 
@@ -341,6 +373,61 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     }
   }
 
+  Future<void> _performSearch(String query) async {
+    if (!mounted) return;
+
+    try {
+      // Get current map center for better results
+      final center = _mapController.camera.center;
+
+      final results = await NominatimSearchService.search(
+        query,
+        viewbox: center,
+        limit: 8,
+      );
+
+      if (mounted) {
+        setState(() {
+          _searchResults = results;
+          _isSearching = false;
+          _showSearchResults = results.isNotEmpty;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSearching = false;
+          _showSearchResults = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Search failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _selectSearchResult(SearchResult result) {
+    _mapController.move(result.position, 16.0);
+    setState(() {
+      _showSearchResults = false;
+      _searchController.clear();
+    });
+    _searchFocusNode.unfocus();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _searchResults.clear();
+      _showSearchResults = false;
+      _isSearching = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -402,7 +489,16 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                 }
               },
 
-              onTap: (_, point) => widget.onAddSite(context, point),
+              onTap: (_, point) {
+                // Hide search results when tapping map
+                if (_showSearchResults) {
+                  setState(() {
+                    _showSearchResults = false;
+                  });
+                  _searchFocusNode.unfocus();
+                }
+                widget.onAddSite(context, point);
+              },
 
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
@@ -419,8 +515,8 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                 userAgentPackageName: 'com.constructionproject.app',
               ),
 
-              // Show circles only when zoom >= 13.4
-              if (_zoom >= 13.4)
+              // Show circles only when zoom >= 8
+              if (_zoom >= 8)
                 CircleLayer(circles: _builtCircles),
 
               // Use pre-built markers
@@ -431,6 +527,102 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                 MarkerLayer(markers: _builtMarkers.take(15).toList()),
             ],
           ),
+
+          // Search Bar
+          Positioned(
+            top: 50,
+            left: 20,
+            right: 80,
+            child: Material(
+              elevation: 8,
+              borderRadius: BorderRadius.circular(25),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  onChanged: _onSearchChanged,
+                  decoration: InputDecoration(
+                    hintText: 'Search places...',
+                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      onPressed: _clearSearch,
+                    )
+                        : _isSearching
+                        ? const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(25),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Search Results
+          if (_showSearchResults && _searchResults.isNotEmpty)
+            Positioned(
+              top: 105,
+              left: 20,
+              right: 80,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _searchResults.length,
+                    separatorBuilder: (context, index) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final result = _searchResults[index];
+                      return ListTile(
+                        leading: Icon(
+                          _getIconForType(result.type),
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                        title: Text(
+                          result.displayName.split(',').first,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Text(
+                          result.displayName,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onTap: () => _selectSearchResult(result),
+                        dense: true,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
 
           // Attribution
           Positioned(
@@ -453,7 +645,7 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
           // Loading indicator
           if (_isMoving)
             Positioned(
-              top: 50,
+              top: 120,
               right: 20,
               child: Card(
                 elevation: 4,
@@ -477,8 +669,8 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
 
           // Controls
           Positioned(
-            top: 20,
-            left: 20,
+            top: 50,
+            right: 20,
             child: Column(
               children: [
                 FloatingActionButton.small(
@@ -489,7 +681,6 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                   child: const Icon(Icons.center_focus_strong, color: Colors.white),
                 ),
                 const SizedBox(height: 8),
-                // Add a button to toggle geofence visibility
                 FloatingActionButton.small(
                   heroTag: "site_map_refresh_fab",
                   onPressed: () {
@@ -516,9 +707,9 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                _zoom >= 13.4
+                _zoom >= 8
                     ? 'Tap to add site • Zoom: ${_zoom.toStringAsFixed(1)} • Geofences visible'
-                    : 'Tap to add site • Zoom: ${_zoom.toStringAsFixed(1)} • Zoom to 13.4+ for geofences',
+                    : 'Tap to add site • Zoom: ${_zoom.toStringAsFixed(1)} • Zoom to 8+ for geofences',
                 style: const TextStyle(fontSize: 11),
               ),
             ),
@@ -541,7 +732,7 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                       'Zoom: ${_zoom.toStringAsFixed(1)}\n'
                       'Sites w/ radius: ${_sitesSnapshot.where((s) => s.geofenceRadius != null && s.geofenceRadius! > 0).length}\n'
                       'Moving: $_isMoving\n'
-                      'Show circles: ${_zoom >= 13.4}',
+                      'Show circles: ${_zoom >= 8}',
                   style: const TextStyle(color: Colors.white, fontSize: 9, height: 1.2),
                 ),
               ),
@@ -549,5 +740,24 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
         ],
       ),
     );
+  }
+
+  IconData _getIconForType(String type) {
+    switch (type.toLowerCase()) {
+      case 'city':
+      case 'town':
+      case 'village':
+        return Icons.location_city;
+      case 'road':
+      case 'street':
+        return Icons.route;
+      case 'building':
+      case 'house':
+        return Icons.business;
+      case 'amenity':
+        return Icons.place;
+      default:
+        return Icons.location_on;
+    }
   }
 }
