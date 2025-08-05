@@ -20,22 +20,41 @@ class SitesScreen extends StatefulWidget {
   State<SitesScreen> createState() => _SitesScreenState();
 }
 
-class _SitesScreenState extends State<SitesScreen> {
+class _SitesScreenState extends State<SitesScreen> with AutomaticKeepAliveClientMixin {
+  bool _isInitialized = false;
+
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   void initState() {
     super.initState();
-    Future.microtask(() async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeProviders();
+    });
+  }
+
+  Future<void> _initializeProviders() async {
+    if (_isInitialized) return;
+
+    try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final user = await authService.getCurrentUser();
       final ownerId = user?.id ?? '';
-      final managerProvider = Provider.of<ManagerLocationProvider>(context, listen: false);
 
-      // As owner, you only need to send your id to request your managers
-      managerProvider.connectAsOwner();
-      managerProvider.onConnected(() {
-        managerProvider.requestManagersForOwner(ownerId);
-      });
-    });
+      if (ownerId.isNotEmpty) {
+        final managerProvider = Provider.of<ManagerLocationProvider>(context, listen: false);
+
+        managerProvider.connectAsOwner();
+        managerProvider.onConnected(() {
+          managerProvider.requestManagersForOwner(ownerId);
+        });
+
+        _isInitialized = true;
+      }
+    } catch (e) {
+      debugPrint('Error initializing providers: $e');
+    }
   }
 
   void _showAddSiteDialog(BuildContext context, LatLng tappedPoint) {
@@ -43,8 +62,7 @@ class _SitesScreenState extends State<SitesScreen> {
       context: context,
       builder: (ctx) => AddSiteDialog(
         tappedPoint: tappedPoint,
-        onSiteAdded: () =>
-            context.read<SiteProvider>().fetchSites(),
+        onSiteAdded: () => _refreshSites(),
       ),
     );
   }
@@ -54,19 +72,66 @@ class _SitesScreenState extends State<SitesScreen> {
       context: context,
       builder: (ctx) => DeleteSiteDialog(site: site),
     );
-    if (deleted == true) {
-      await context.read<SiteProvider>().deleteSite(site.id ?? "");
-      await context.read<SiteProvider>().fetchSites();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Site deleted', style: TextStyle(color: Colors.white)), backgroundColor: AppColors.success),
-      );
+
+    if (deleted == true && mounted) {
+      try {
+        final siteProvider = context.read<SiteProvider>();
+        await siteProvider.deleteSite(site.id ?? "");
+        await _refreshSites();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Site deleted successfully',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: AppColors.success,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Error deleting site: $e',
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _refreshSites() async {
+    try {
+      if (mounted) {
+        await context.read<SiteProvider>().fetchSites();
+      }
+    } catch (e) {
+      debugPrint('Error refreshing sites: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return widget.selectedTab == 0
-        ? SiteMap(onAddSite: _showAddSiteDialog)
-        : SiteList(onDeleteSite: _deleteSite);
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+
+    return RepaintBoundary(
+      child: widget.selectedTab == 0
+          ? SiteMap(onAddSite: _showAddSiteDialog)
+          : SiteList(onDeleteSite: _deleteSite),
+    );
+  }
+
+  @override
+  void dispose() {
+    // Clean up any listeners or connections here if needed
+    super.dispose();
   }
 }

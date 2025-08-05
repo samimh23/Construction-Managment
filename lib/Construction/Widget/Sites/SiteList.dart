@@ -35,32 +35,32 @@ class SiteList extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.secondary.withOpacity(0.05),
+              color: Colors.grey[100],
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.domain_disabled_outlined,
               size: 48,
-              color: AppColors.secondary.withOpacity(0.4),
+              color: Colors.grey[400],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Text(
-            "No construction sites",
+            'No construction sites found',
             style: TextStyle(
               fontSize: 20,
-              color: AppColors.primaryDark,
               fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            "Create your first site to get started",
+            'Add your first construction site to get started',
             style: TextStyle(
               fontSize: 14,
-              color: AppColors.secondary.withOpacity(0.7),
+              color: Colors.grey[500],
             ),
           ),
         ],
@@ -70,14 +70,14 @@ class SiteList extends StatelessWidget {
 
   Widget _buildWebGrid(BuildContext context, SiteProvider provider) {
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(20.0),
       child: GridView.builder(
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: MediaQuery.of(context).size.width > 1400 ? 4 :
           MediaQuery.of(context).size.width > 1000 ? 3 : 2,
-          childAspectRatio: 1.4,
-          crossAxisSpacing: 20,
-          mainAxisSpacing: 20,
+          childAspectRatio: 1.8, // Made cards wider and shorter
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
         ),
         itemCount: provider.sites.length,
         itemBuilder: (ctx, i) {
@@ -88,39 +88,36 @@ class SiteList extends StatelessWidget {
   }
 
   Widget _buildMobileList(BuildContext context, SiteProvider provider) {
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       itemCount: provider.sites.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (ctx, i) {
-        return _buildSiteCard(context, provider.sites[i], provider, isWeb: false);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _buildSiteCard(context, provider.sites[i], provider, isWeb: false),
+        );
       },
     );
   }
 
   Widget _buildSiteCard(BuildContext context, ConstructionSite site, SiteProvider provider, {required bool isWeb}) {
-    final statusColor = site.isActive == true ? AppColors.success : AppColors.error;
+    final statusColor = site.isActive == true ? const Color(0xFF10B981) : const Color(0xFFEF4444);
 
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
         color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
-            blurRadius: 20,
-            spreadRadius: 0,
-            offset: const Offset(0, 4),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(
-          color: Colors.grey.withOpacity(0.08),
-          width: 1,
-        ),
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () async {
@@ -130,7 +127,7 @@ class SiteList extends StatelessWidget {
             provider.fetchSites();
           },
           child: Padding(
-            padding: EdgeInsets.all(isWeb ? 24 : 20),
+            padding: EdgeInsets.all(isWeb ? 12 : 16), // Reduced padding for web
             child: isWeb
                 ? _buildWebCardContent(context, site, statusColor, provider)
                 : _buildMobileCardContent(context, site, statusColor, provider),
@@ -143,156 +140,141 @@ class SiteList extends StatelessWidget {
   Widget _buildWebCardContent(BuildContext context, ConstructionSite site, Color statusColor, SiteProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Header
+        // Compact Header Row
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStatusIndicator(site.isActive == true, statusColor),
+            // Smaller icon for web
+            Container(
+              width: 40, // Reduced from 56
+              height: 40, // Reduced from 56
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12), // Reduced radius
+                border: Border.all(color: statusColor.withOpacity(0.2), width: 1.5),
+              ),
+              child: Icon(
+                site.isActive == true ? Icons.construction_rounded : Icons.pause_circle_rounded,
+                color: statusColor,
+                size: 20, // Reduced from 24
+              ),
+            ),
             const SizedBox(width: 12),
+
+            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Site Name - Compact
                   Text(
                     site.name,
-                    style: TextStyle(
+                    style: const TextStyle(
+                      fontSize: 14, // Reduced from 16
                       fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: AppColors.primaryDark,
+                      color: Color(0xFF1F2937),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    site.isActive == true ? "Active" : "Inactive",
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  const SizedBox(height: 2), // Reduced spacing
+
+                  // Status - Compact
+                  Row(
+                    children: [
+                      Container(
+                        width: 6, // Reduced from 8
+                        height: 6, // Reduced from 8
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        site.isActive == true ? 'Active' : 'Inactive',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 11, // Reduced from 13
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            _buildActionMenu(context, site, provider),
+
+            // Compact Action Menu
+            _buildCompactActionMenu(context, site, provider),
           ],
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 8), // Reduced spacing
 
-        // Content
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildInfoRow(
-                Icons.location_on_outlined,
+        // Address - Compact
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.location_on_outlined, size: 12, color: Colors.grey[500]), // Smaller icon
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
                 site.adresse,
-                AppColors.secondary,
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]), // Smaller text
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              const Spacer(),
+            ),
+          ],
+        ),
 
-              // Bottom info
-              Row(
-                children: [
-                  if (site.budget != null) ...[
-                    Expanded(
-                      child: _buildMetricChip(
-                        Icons.attach_money,
-                        "${site.budget}",
-                        AppColors.success,
-                      ),
-                    ),
-                  ],
-                  if (site.budget != null && site.endDate != null)
-                    const SizedBox(width: 8),
-                  if (site.endDate != null)
-                    Expanded(
-                      child: _buildMetricChip(
-                        Icons.schedule_outlined,
-                        _formatDate(site.endDate!),
-                        AppColors.accent,
-                      ),
-                    ),
-                ],
+        // Owner - Compact
+        if (site.owner.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.business_outlined, size: 12, color: Colors.grey[500]),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  site.owner,
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
-        ),
-      ],
-    );
-  }
+        ],
 
-  Widget _buildMobileCardContent(BuildContext context, ConstructionSite site, Color statusColor, SiteProvider provider) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header
-        Row(
-          children: [
-            _buildStatusIndicator(site.isActive == true, statusColor),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    site.name,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: AppColors.primaryDark,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    site.isActive == true ? "Active" : "Inactive",
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _buildActionMenu(context, site, provider),
-          ],
-        ),
+        const Spacer(), // Push metrics to bottom
 
-        const SizedBox(height: 16),
-
-        // Details
-        _buildInfoRow(
-          Icons.location_on_outlined,
-          site.adresse,
-          AppColors.secondary,
-        ),
-
+        // Bottom Metrics - Compact
         if (site.budget != null || site.endDate != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Row(
             children: [
               if (site.budget != null) ...[
                 Expanded(
-                  child: _buildMetricChip(
-                    Icons.attach_money,
-                    "${site.budget}",
-                    AppColors.success,
+                  child: _buildCompactMetricChip(
+                    Icons.account_balance_wallet_rounded,
+                    "TND ${site.budget}",
+                    const Color(0xFF10B981),
                   ),
                 ),
               ],
               if (site.budget != null && site.endDate != null)
-                const SizedBox(width: 8),
+                const SizedBox(width: 6), // Reduced spacing
               if (site.endDate != null)
                 Expanded(
-                  child: _buildMetricChip(
-                    Icons.schedule_outlined,
+                  child: _buildCompactMetricChip(
+                    Icons.schedule_rounded,
                     _formatDate(site.endDate!),
-                    AppColors.accent,
+                    const Color(0xFF3B82F6),
                   ),
                 ),
             ],
@@ -302,62 +284,172 @@ class SiteList extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusIndicator(bool isActive, Color color) {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Icon(
-        isActive ? Icons.construction : Icons.pause_circle_outline,
-        color: color,
-        size: 20,
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String text, Color color) {
-    return Row(
+  Widget _buildMobileCardContent(BuildContext context, ConstructionSite site, Color statusColor, SiteProvider provider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: color.withOpacity(0.7)),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 14,
-              color: color,
-              fontWeight: FontWeight.w400,
+        // Header Row: Avatar + Details + Menu
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Site Icon
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: statusColor.withOpacity(0.2), width: 1.5),
+              ),
+              child: Icon(
+                site.isActive == true ? Icons.construction_rounded : Icons.pause_circle_rounded,
+                color: statusColor,
+                size: 24,
+              ),
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
+            const SizedBox(width: 16),
+
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Site Name
+                  Text(
+                    site.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1F2937),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Status
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        site.isActive == true ? 'Active' : 'Inactive',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Address
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.location_on_outlined, size: 14, color: Colors.grey[500]),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          site.adresse,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Owner
+                  if (site.owner.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.business_outlined, size: 14, color: Colors.grey[500]),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            site.owner,
+                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Action Menu
+            _buildActionMenu(context, site, provider),
+          ],
         ),
+
+        // Bottom Metrics Row
+        if (site.budget != null || site.endDate != null) ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              if (site.budget != null) ...[
+                Expanded(
+                  child: _buildInfoChip(
+                    Icons.account_balance_wallet_rounded,
+                    "TND ${site.budget}",
+                    const Color(0xFF10B981),
+                  ),
+                ),
+              ],
+              if (site.budget != null && site.endDate != null)
+                const SizedBox(width: 8),
+              if (site.endDate != null) ...[
+                Expanded(
+                  child: _buildInfoChip(
+                    Icons.schedule_rounded,
+                    _formatDate(site.endDate!),
+                    const Color(0xFF3B82F6),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildMetricChip(IconData icon, String value, Color color) {
+  // New compact metric chip for web
+  Widget _buildCompactMetricChip(IconData icon, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced padding
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(8),
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6), // Smaller radius
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          Icon(icon, size: 10, color: color), // Smaller icon
+          const SizedBox(width: 4),
           Expanded(
             child: Text(
               value,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 9, // Smaller text
                 color: color,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -367,12 +459,20 @@ class SiteList extends StatelessWidget {
     );
   }
 
-  Widget _buildActionMenu(BuildContext context, ConstructionSite site, SiteProvider provider) {
+  // New compact action menu for web
+  Widget _buildCompactActionMenu(BuildContext context, ConstructionSite site, SiteProvider provider) {
     return PopupMenuButton<String>(
-      icon: Icon(
-        Icons.more_vert,
-        color: AppColors.secondary.withOpacity(0.6),
-        size: 20,
+      icon: Container(
+        padding: const EdgeInsets.all(4), // Reduced padding
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Icon(
+          Icons.more_vert_rounded,
+          color: Colors.grey[600],
+          size: 14, // Smaller icon
+        ),
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -397,9 +497,9 @@ class SiteList extends StatelessWidget {
           value: 'edit',
           child: Row(
             children: [
-              Icon(Icons.edit_outlined, size: 18, color: AppColors.accent),
-              const SizedBox(width: 12),
-              const Text('Edit'),
+              Icon(Icons.edit_rounded, size: 16, color: const Color(0xFF3B82F6)),
+              const SizedBox(width: 8),
+              const Text('Edit', style: TextStyle(fontSize: 13)),
             ],
           ),
         ),
@@ -407,9 +507,95 @@ class SiteList extends StatelessWidget {
           value: 'delete',
           child: Row(
             children: [
-              Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+              Icon(Icons.delete_rounded, size: 16, color: const Color(0xFFEF4444)),
+              const SizedBox(width: 8),
+              const Text('Delete', style: TextStyle(fontSize: 13)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoChip(IconData icon, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 12,
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionMenu(BuildContext context, ConstructionSite site, SiteProvider provider) {
+    return PopupMenuButton<String>(
+      icon: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          Icons.more_vert_rounded,
+          color: Colors.grey[600],
+          size: 18,
+        ),
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      elevation: 8,
+      shadowColor: Colors.black.withOpacity(0.1),
+      onSelected: (value) async {
+        switch (value) {
+          case 'edit':
+            await Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => SiteDetailsScreen(site: site),
+            ));
+            provider.fetchSites();
+            break;
+          case 'delete':
+            onDeleteSite(context, site);
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(Icons.edit_rounded, size: 18, color: const Color(0xFF3B82F6)),
               const SizedBox(width: 12),
-              const Text('Delete'),
+              const Text('Edit Site'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_rounded, size: 18, color: const Color(0xFFEF4444)),
+              const SizedBox(width: 12),
+              const Text('Delete Site'),
             ],
           ),
         ),

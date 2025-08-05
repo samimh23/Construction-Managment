@@ -50,7 +50,6 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
   String _selectedRole = 'All';
   final TextEditingController _searchController = TextEditingController();
 
-  // Controllers for create worker form are now local to the dialog
   // Role colors and icons mapping
   final Map<String, Color> _roleColors = {
     'worker': const Color(0xFF10B981),
@@ -75,7 +74,6 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<WorkerProvider>().loadWorkersByOwner();
-      // Also trigger fetching sites for dropdown if not loaded
       context.read<SiteProvider>().fetchSites();
       _animationController.forward();
     });
@@ -282,7 +280,6 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
     );
   }
 
-  // NEW: Show worker summary dialog
   void _showWorkerSummaryDialog(BuildContext context, String workerId, String workerName) async {
     final provider = Provider.of<WorkerProvider>(context, listen: false);
     final now = DateTime.now();
@@ -361,452 +358,415 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: CustomScrollView(
-        slivers: [
-          // Modern App Bar with Statistics
-          SliverAppBar(
-            expandedHeight: 280,
-            floating: false,
-            pinned: true,
-            elevation: 0,
-            backgroundColor: Colors.transparent,
-            foregroundColor: Colors.white,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF1E3A8A),
-                      Color(0xFF3B82F6),
-                      Color(0xFF06B6D4),
-                    ],
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    // Background pattern - Fixed with custom painter
-                    Positioned.fill(
-                      child: Opacity(
-                        opacity: 0.1,
-                        child: CustomPaint(
-                          painter: GridPatternPainter(),
-                          size: Size.infinite,
-                        ),
-                      ),
-                    ),
-                    // Content
-                    Positioned(
-                      bottom: 20,
-                      left: 20,
-                      right: 20,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: const Text(
-                              'Team Members',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: const Text(
-                              'Manage your construction workforce',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Statistics
-                      // Replace the statistics section in your build method with this:
-                      Consumer<WorkerProvider>(
-                        builder: (context, provider, child) {
-                          if (provider.workers.isEmpty) return const SizedBox();
-
-                          final totalWorkers = provider.workers.length;
-                          final activeWorkers = provider.workers.where((w) => w.isActive).length;
-                          final managers = provider.workers.where((w) => w.role.toLowerCase() == 'manager').length;
-                          final workers = provider.workers.where((w) => w.role.toLowerCase() == 'worker').length;
-
-                          return FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                // Use different layouts based on screen width
-                                if (constraints.maxWidth < 300) {
-                                  // Very small screens - 2x2 grid
-                                  return Column(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          _buildResponsiveStatCard('Total', totalWorkers.toString(), Icons.people_rounded),
-                                          const SizedBox(width: 8),
-                                          _buildResponsiveStatCard('Active', activeWorkers.toString(), Icons.check_circle_rounded),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        children: [
-                                          _buildResponsiveStatCard('Managers', managers.toString(), Icons.supervisor_account_rounded),
-                                          const SizedBox(width: 8),
-                                          _buildResponsiveStatCard('Workers', workers.toString(), Icons.construction_rounded),
-                                        ],
-                                      ),
-                                    ],
-                                  );
-                                } else {
-                                  // Normal screens - single row
-                                  return Row(
-                                    children: [
-                                      _buildResponsiveStatCard('Total', totalWorkers.toString(), Icons.people_rounded),
-                                      const SizedBox(width: 8),
-                                      _buildResponsiveStatCard('Active', activeWorkers.toString(), Icons.check_circle_rounded),
-                                      const SizedBox(width: 8),
-                                      _buildResponsiveStatCard('Managers', managers.toString(), Icons.supervisor_account_rounded),
-                                      const SizedBox(width: 8),
-                                      _buildResponsiveStatCard('Workers', workers.toString(), Icons.construction_rounded),
-                                    ],
-                                  );
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      ),
+    return Material(
+      color: Colors.transparent,
+      child: Stack(
+        children: [
+          // Main content
+          Container(
+            color: const Color(0xFFF8FAFC),
+            child: CustomScrollView(
+              slivers: [
+                // Modern Header with Statistics
+                SliverToBoxAdapter(
+                  child: Container(
+                    height: 280,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF1E3A8A),
+                          Color(0xFF3B82F6),
+                          Color(0xFF06B6D4),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              Container(
-                margin: const EdgeInsets.only(right: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.refresh_rounded),
-                  onPressed: () {
-                    context.read<WorkerProvider>().loadWorkersByOwner();
-                    context.read<SiteProvider>().fetchSites();
-                  },
-                ),
-              ),
-            ],
-          ),
-          // Search Bar and Role Filter
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
+                    child: Stack(
+                      children: [
+                        // Background pattern
+                        Positioned.fill(
+                          child: Opacity(
+                            opacity: 0.1,
+                            child: CustomPaint(
+                              painter: GridPatternPainter(),
+                              size: Size.infinite,
+                            ),
+                          ),
+                        ),
+                        // Content
+                        Positioned(
+                          bottom: 20,
+                          left: 20,
+                          right: 20,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        FadeTransition(
+                                          opacity: _fadeAnimation,
+                                          child: const Text(
+                                            'Team Members',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 32,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: -0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        FadeTransition(
+                                          opacity: _fadeAnimation,
+                                          child: const Text(
+                                            'Manage your construction workforce',
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w400,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Refresh button
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: IconButton(
+                                      icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                                      onPressed: () {
+                                        context.read<WorkerProvider>().loadWorkersByOwner();
+                                        context.read<SiteProvider>().fetchSites();
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              // Statistics
+                              Consumer<WorkerProvider>(
+                                builder: (context, provider, child) {
+                                  if (provider.workers.isEmpty) return const SizedBox();
+
+                                  final totalWorkers = provider.workers.length;
+                                  final activeWorkers = provider.workers.where((w) => w.isActive).length;
+                                  final managers = provider.workers.where((w) => w.role.toLowerCase() == 'manager').length;
+                                  final workers = provider.workers.where((w) => w.role.toLowerCase() == 'worker').length;
+
+                                  return FadeTransition(
+                                    opacity: _fadeAnimation,
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        if (constraints.maxWidth < 300) {
+                                          return Column(
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  _buildResponsiveStatCard('Total', totalWorkers.toString(), Icons.people_rounded),
+                                                  const SizedBox(width: 8),
+                                                  _buildResponsiveStatCard('Active', activeWorkers.toString(), Icons.check_circle_rounded),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children: [
+                                                  _buildResponsiveStatCard('Managers', managers.toString(), Icons.supervisor_account_rounded),
+                                                  const SizedBox(width: 8),
+                                                  _buildResponsiveStatCard('Workers', workers.toString(), Icons.construction_rounded),
+                                                ],
+                                              ),
+                                            ],
+                                          );
+                                        } else {
+                                          return Row(
+                                            children: [
+                                              _buildResponsiveStatCard('Total', totalWorkers.toString(), Icons.people_rounded),
+                                              const SizedBox(width: 8),
+                                              _buildResponsiveStatCard('Active', activeWorkers.toString(), Icons.check_circle_rounded),
+                                              const SizedBox(width: 8),
+                                              _buildResponsiveStatCard('Managers', managers.toString(), Icons.supervisor_account_rounded),
+                                              const SizedBox(width: 8),
+                                              _buildResponsiveStatCard('Workers', workers.toString(), Icons.construction_rounded),
+                                            ],
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (value) => setState(() => _searchQuery = value),
-                      decoration: InputDecoration(
-                        hintText: 'Search workers...',
-                        hintStyle: TextStyle(color: Colors.grey[400]),
-                        prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[400]),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                          icon: Icon(Icons.clear_rounded, color: Colors.grey[400]),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = '');
-                          },
-                        )
-                            : null,
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                      ),
-                    ),
                   ),
-                  const SizedBox(height: 16),
-                  Consumer<WorkerProvider>(
-                    builder: (context, provider, child) {
-                      if (provider.workers.isEmpty) return const SizedBox();
+                ),
+                // Search Bar and Role Filter
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: (value) => setState(() => _searchQuery = value),
+                            decoration: InputDecoration(
+                              hintText: 'Search workers...',
+                              hintStyle: TextStyle(color: Colors.grey[400]),
+                              prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[400]),
+                              suffixIcon: _searchQuery.isNotEmpty
+                                  ? IconButton(
+                                icon: Icon(Icons.clear_rounded, color: Colors.grey[400]),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              )
+                                  : null,
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Consumer<WorkerProvider>(
+                          builder: (context, provider, child) {
+                            if (provider.workers.isEmpty) return const SizedBox();
 
-                      final roles = _getUniqueRoles(provider.workers);
-
-                      return Container(
-                        height: 50,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: roles.length,
-                          itemBuilder: (context, index) {
-                            final role = roles[index];
-                            final isSelected = _selectedRole == role;
-                            final roleColor = role == 'All' ? Colors.grey[600]! : _getRoleColor(role);
+                            final roles = _getUniqueRoles(provider.workers);
 
                             return Container(
-                              margin: const EdgeInsets.only(right: 8),
-                              child: FilterChip(
-                                label: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (role != 'All') ...[
-                                      Icon(
-                                        _getRoleIcon(role),
-                                        size: 16,
-                                        color: isSelected ? Colors.white : roleColor,
+                              height: 50,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: roles.length,
+                                itemBuilder: (context, index) {
+                                  final role = roles[index];
+                                  final isSelected = _selectedRole == role;
+                                  final roleColor = role == 'All' ? Colors.grey[600]! : _getRoleColor(role);
+
+                                  return Container(
+                                    margin: const EdgeInsets.only(right: 8),
+                                    child: FilterChip(
+                                      label: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (role != 'All') ...[
+                                            Icon(
+                                              _getRoleIcon(role),
+                                              size: 16,
+                                              color: isSelected ? Colors.white : roleColor,
+                                            ),
+                                            const SizedBox(width: 6),
+                                          ],
+                                          Text(
+                                            role == 'All' ? 'All Team' : role.toUpperCase(),
+                                            style: TextStyle(
+                                              color: isSelected ? Colors.white : roleColor,
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(width: 6),
-                                    ],
-                                    Text(
-                                      role == 'All' ? 'All Team' : role.toUpperCase(),
-                                      style: TextStyle(
-                                        color: isSelected ? Colors.white : roleColor,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12,
+                                      selected: isSelected,
+                                      onSelected: (selected) {
+                                        setState(() => _selectedRole = role);
+                                      },
+                                      backgroundColor: Colors.white,
+                                      selectedColor: roleColor,
+                                      elevation: isSelected ? 4 : 1,
+                                      shadowColor: roleColor.withOpacity(0.3),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        side: BorderSide(
+                                          color: isSelected ? roleColor : roleColor.withOpacity(0.3),
+                                          width: 1.5,
+                                        ),
                                       ),
                                     ),
-                                  ],
-                                ),
-                                selected: isSelected,
-                                onSelected: (selected) {
-                                  setState(() => _selectedRole = role);
+                                  );
                                 },
-                                backgroundColor: Colors.white,
-                                selectedColor: roleColor,
-                                elevation: isSelected ? 4 : 1,
-                                shadowColor: roleColor.withOpacity(0.3),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(
-                                    color: isSelected ? roleColor : roleColor.withOpacity(0.3),
-                                    width: 1.5,
-                                  ),
-                                ),
                               ),
                             );
                           },
                         ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Worker List
+                Consumer<WorkerProvider>(
+                  builder: (context, provider, child) {
+                    if (provider.isLoading) {
+                      return const SliverFillRemaining(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'Loading team members...',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Worker List
-          Consumer<WorkerProvider>(
-            builder: (context, provider, child) {
-              if (provider.isLoading) {
-                return const SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Loading team members...',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 16,
+                    }
+
+                    if (provider.workers.isEmpty) {
+                      return SliverFillRemaining(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.people_outline_rounded,
+                                  size: 48,
+                                  color: Colors.grey[400],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No workers found',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Add your first team member to get started',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                );
-              }
+                      );
+                    }
 
-              if (provider.workers.isEmpty) {
-                return SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.people_outline_rounded,
-                            size: 48,
-                            color: Colors.grey[400],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No workers found',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Add your first team member to get started',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
+                    // Filter workers
+                    final filteredWorkers = provider.workers.where((worker) {
+                      final matchesSearch = '${worker.firstName} ${worker.lastName}'
+                          .toLowerCase()
+                          .contains(_searchQuery.toLowerCase()) ||
+                          worker.role.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                          (worker.email?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
 
-              // Filter workers
-              final filteredWorkers = provider.workers.where((worker) {
-                final matchesSearch = '${worker.firstName} ${worker.lastName}'
-                    .toLowerCase()
-                    .contains(_searchQuery.toLowerCase()) ||
-                    worker.role.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                    (worker.email?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+                      final matchesRole = _selectedRole == 'All' || worker.role == _selectedRole;
 
-                final matchesRole = _selectedRole == 'All' || worker.role == _selectedRole;
+                      return matchesSearch && matchesRole;
+                    }).toList();
 
-                return matchesSearch && matchesRole;
-              }).toList();
-
-              // Group by role
-              final groupedWorkers = <String, List<dynamic>>{};
-              for (final worker in filteredWorkers) {
-                if (!groupedWorkers.containsKey(worker.role)) {
-                  groupedWorkers[worker.role] = [];
-                }
-                groupedWorkers[worker.role]!.add(worker);
-              }
-
-              final sortedRoles = groupedWorkers.keys.toList()..sort();
-
-              return SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                      int currentIndex = 0;
-                      for (final role in sortedRoles) {
-                        if (index == currentIndex) {
-                          // Role header
-                          return _buildRoleHeader(role, groupedWorkers[role]!.length);
-                        }
-                        currentIndex++;
-
-                        for (int i = 0; i < groupedWorkers[role]!.length; i++) {
-                          if (index == currentIndex) {
-                            // Worker card
-                            return _buildWorkerCard(context, groupedWorkers[role]![i]);
-                          }
-                          currentIndex++;
-                        }
+                    // Group by role
+                    final groupedWorkers = <String, List<dynamic>>{};
+                    for (final worker in filteredWorkers) {
+                      if (!groupedWorkers.containsKey(worker.role)) {
+                        groupedWorkers[worker.role] = [];
                       }
-                      return null;
-                    },
-                    childCount: sortedRoles.fold(0, (sum, role) => sum! + 1 + groupedWorkers[role]!.length),
-                  ),
-                ),
-              );
-            },
-          ),
-          // Bottom spacing
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 100),
-          ),
-        ],
-      ),
+                      groupedWorkers[worker.role]!.add(worker);
+                    }
 
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton.extended(
-            heroTag: "worker_list_create_worker_fab",
-            onPressed: () => _showCreateWorkerDialog(context),
-            backgroundColor: const Color(0xFF10B981),
-            foregroundColor: Colors.white,
-            elevation: 8,
-            icon: const Icon(Icons.person_add_alt_1_rounded),
-            label: const Text(
-              'Create Worker',
-              style: TextStyle(fontWeight: FontWeight.w600),
+                    final sortedRoles = groupedWorkers.keys.toList()..sort();
+
+                    return SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                            int currentIndex = 0;
+                            for (final role in sortedRoles) {
+                              if (index == currentIndex) {
+                                // Role header
+                                return _buildRoleHeader(role, groupedWorkers[role]!.length);
+                              }
+                              currentIndex++;
+
+                              for (int i = 0; i < groupedWorkers[role]!.length; i++) {
+                                if (index == currentIndex) {
+                                  // Worker card
+                                  return _buildWorkerCard(context, groupedWorkers[role]![i]);
+                                }
+                                currentIndex++;
+                              }
+                            }
+                            return null;
+                          },
+                          childCount: sortedRoles.fold(0, (sum, role) => sum! + 1 + groupedWorkers[role]!.length),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                // Bottom spacing for FAB
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 100),
+                ),
+              ],
             ),
           ),
-
-
+          // Floating Action Button
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: FloatingActionButton.extended(
+              heroTag: "worker_list_create_worker_fab",
+              onPressed: () => _showCreateWorkerDialog(context),
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              elevation: 8,
+              icon: const Icon(Icons.person_add_alt_1_rounded),
+              label: const Text(
+                'Create Worker',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(8), // Reduced padding for mobile
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min, // Add this
-          children: [
-            Icon(icon, color: Colors.white, size: 18), // Slightly smaller icon
-            const SizedBox(height: 4),
-            FittedBox( // Wrap value in FittedBox
-              child: Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16, // Slightly smaller font
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 2),
-            FittedBox( // Wrap label in FittedBox
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 10, // Smaller font for labels
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // ... rest of your existing methods remain the same
   Widget _buildResponsiveStatCard(String label, String value, IconData icon) {
     return Expanded(
       child: Container(
@@ -851,6 +811,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
       ),
     );
   }
+
   Widget _buildRoleHeader(String role, int count) {
     final roleColor = _getRoleColor(role);
     final roleIcon = _getRoleIcon(role);

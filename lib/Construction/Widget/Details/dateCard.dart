@@ -24,57 +24,14 @@ class SiteDetailsDatesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 20,
-            spreadRadius: 0,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 20),
-            _buildDateFields(context),
-            if (!isEditing) ...[
-              const SizedBox(height: 16),
-              _buildProjectDuration(),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.accent.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(Icons.event_rounded, color: AppColors.accent, size: 20),
-        ),
-        const SizedBox(width: 12),
-        const Text(
-          "Project Timeline",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.primaryDark,
-          ),
-        ),
+        _buildDateFields(context),
+        if (!isEditing && (startDate != null || endDate != null)) ...[
+          const SizedBox(height: 16),
+          _buildProjectDuration(),
+        ],
       ],
     );
   }
@@ -88,7 +45,7 @@ class SiteDetailsDatesCard extends StatelessWidget {
             "Start Date",
             startDate,
             Icons.play_circle_outline_rounded,
-            AppColors.success,
+            const Color(0xFF10B981),
             onStartDateChanged,
           ),
         ),
@@ -99,7 +56,7 @@ class SiteDetailsDatesCard extends StatelessWidget {
             "End Date",
             endDate,
             Icons.stop_circle_outlined,
-            AppColors.error,
+            const Color(0xFFEF4444),
             onEndDateChanged,
           ),
         ),
@@ -120,10 +77,10 @@ class SiteDetailsDatesCard extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: AppColors.secondary,
+            color: Color(0xFF6B7280),
           ),
         ),
         const SizedBox(height: 8),
@@ -153,7 +110,7 @@ class SiteDetailsDatesCard extends StatelessWidget {
             return Theme(
               data: Theme.of(context).copyWith(
                 colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: AppColors.primary,
+                  primary: const Color(0xFF3B82F6),
                 ),
               ),
               child: child!,
@@ -168,13 +125,27 @@ class SiteDetailsDatesCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            Icon(icon, color: color, size: 18),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(icon, color: color, size: 16),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -182,11 +153,11 @@ class SiteDetailsDatesCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: date != null ? AppColors.primaryDark : AppColors.secondary,
+                  color: date != null ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
                 ),
               ),
             ),
-            Icon(Icons.calendar_today_rounded, color: color, size: 16),
+            Icon(Icons.calendar_today_rounded, color: Colors.grey.shade400, size: 16),
           ],
         ),
       ),
@@ -198,13 +169,27 @@ class SiteDetailsDatesCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 18),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -212,7 +197,7 @@ class SiteDetailsDatesCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: date != null ? AppColors.primaryDark : AppColors.secondary,
+                color: date != null ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
               ),
             ),
           ),
@@ -224,37 +209,82 @@ class SiteDetailsDatesCard extends StatelessWidget {
   Widget _buildProjectDuration() {
     if (startDate != null && endDate != null) {
       final duration = endDate!.difference(startDate!).inDays;
-      final isOverdue = endDate!.isBefore(DateTime.now());
+      final now = DateTime.now();
+      final daysElapsed = now.isAfter(startDate!) ? now.difference(startDate!).inDays : 0;
+      final progress = duration > 0 ? (daysElapsed / duration * 100).clamp(0, 100) : 0;
+      final isOverdue = endDate!.isBefore(now);
 
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isOverdue ? AppColors.error.withOpacity(0.05) : AppColors.info.withOpacity(0.05),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isOverdue ? AppColors.error.withOpacity(0.2) : AppColors.info.withOpacity(0.2),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              isOverdue ? Icons.warning_rounded : Icons.access_time_rounded,
-              color: isOverdue ? AppColors.error : AppColors.info,
-              size: 18,
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                isOverdue
-                    ? "Project overdue by ${DateTime.now().difference(endDate!).inDays} days"
-                    : "Duration: $duration days",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: isOverdue ? AppColors.error : AppColors.info,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: isOverdue
+                        ? const Color(0xFFEF4444).withOpacity(0.1)
+                        : const Color(0xFF3B82F6).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    isOverdue ? Icons.warning_rounded : Icons.access_time_rounded,
+                    color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFF3B82F6),
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    isOverdue
+                        ? "Project overdue by ${now.difference(endDate!).inDays} days"
+                        : "Duration: $duration days",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFF1F2937),
+                    ),
+                  ),
+                ),
+                Text(
+                  "${progress.toInt()}%",
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                  ),
+                ),
+              ],
+            ),
+            if (!isOverdue) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress / 100,
+                  backgroundColor: Colors.grey.shade200,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    progress < 50 ? const Color(0xFF10B981) :
+                    progress < 80 ? const Color(0xFFEAB308) : const Color(0xFFEF4444),
+                  ),
+                  minHeight: 6,
                 ),
               ),
-            ),
+            ],
           ],
         ),
       );
