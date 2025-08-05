@@ -28,7 +28,6 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
   late TextEditingController nameController;
   late TextEditingController adresseController;
   late TextEditingController budgetController;
-  late TextEditingController ownerController;
   late TextEditingController managerController;
   late TextEditingController geofenceRadiusController;
   late TextEditingController geofenceLatController;
@@ -49,7 +48,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -63,7 +62,6 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     nameController = TextEditingController(text: site.name);
     adresseController = TextEditingController(text: site.adresse);
     budgetController = TextEditingController(text: site.budget ?? "");
-    ownerController = TextEditingController(text: site.owner);
     managerController = TextEditingController(text: site.manager ?? "");
     geofenceRadiusController = TextEditingController(text: site.geofenceRadius?.toString() ?? "");
     geofenceLatController = TextEditingController(text: site.geofenceCenterLat?.toString() ?? "");
@@ -85,7 +83,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
       "name": nameController.text,
       "adresse": adresseController.text,
       "Budget": budgetController.text.isNotEmpty ? budgetController.text : null,
-      "owner": ownerController.text,
+      "owner": "AyariAladine", // Set as current user
       "manager": managerController.text,
       "GeoLocation": {
         "longitude": widget.site.longitude.toString(),
@@ -114,7 +112,6 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
           nameController.text = updatedData['name'] ?? nameController.text;
           adresseController.text = updatedData['adresse'] ?? adresseController.text;
           budgetController.text = updatedData['Budget']?.toString() ?? '';
-          ownerController.text = updatedData['owner'] ?? ownerController.text;
           managerController.text = updatedData['manager'] ?? managerController.text;
           geofenceRadiusController.text = updatedData['GeoFence']?['radius']?.toString() ?? '';
           geofenceLatController.text = updatedData['GeoFence']?['center']?['Latitude']?.toString() ?? '';
@@ -135,17 +132,49 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
   void _showSnackBar(String message, {required bool isError}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
         backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
 
   bool isWebLayout(BuildContext context) {
-    return MediaQuery.of(context).size.width >= 800;
+    return MediaQuery.of(context).size.width >= 1024;
+  }
+
+  String _getStatusText() {
+    if (isActive == true) return 'Active';
+    if (isActive == false) return 'Inactive';
+    return 'Unknown';
+  }
+
+  Color _getStatusColor() {
+    if (isActive == true) return const Color(0xFF10B981);
+    if (isActive == false) return const Color(0xFFEF4444);
+    return const Color(0xFF6B7280);
+  }
+
+  int _getProjectProgress() {
+    if (startDate == null || endDate == null) return 0;
+    final now = DateTime.now();
+    final total = endDate!.difference(startDate!).inDays;
+    final elapsed = now.difference(startDate!).inDays;
+    if (elapsed <= 0) return 0;
+    if (elapsed >= total) return 100;
+    return ((elapsed / total) * 100).round();
   }
 
   @override
@@ -153,132 +182,261 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     final isWeb = isWebLayout(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: CustomScrollView(
         slivers: [
-          _buildAppBar(),
+          // Compact SliverAppBar - FIXED HEIGHT
+          SliverAppBar(
+            expandedHeight: isWeb ? 120 : 160, // ✅ Much smaller heights
+            floating: false,
+            pinned: true,
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF1E3A8A),
+                      Color(0xFF3B82F6),
+                      Color(0xFF06B6D4),
+                    ],
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    // Simple pattern using CustomPaint
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: GeometricPatternPainter(),
+                      ),
+                    ),
+                    // Content that adapts to screen size
+                    Positioned(
+                      bottom: 16, // Reduced bottom padding
+                      left: 20,
+                      right: 20,
+                      child: isWeb ? _buildWebHeaderContent() : _buildMobileHeaderContent(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Content that adapts to screen size
           SliverPadding(
-            padding: EdgeInsets.all(isWeb ? 32.0 : 20.0),
+            padding: EdgeInsets.all(isWeb ? 24.0 : 16.0),
             sliver: SliverToBoxAdapter(
               child: FadeTransition(
                 opacity: _fadeAnimation,
-                child: isWeb
-                    ? _buildWebLayout(context)
-                    : _buildMobileLayout(context),
+                child: isWeb ? _buildWebContent() : _buildMobileContent(),
               ),
             ),
           ),
         ],
       ),
-      floatingActionButton: isEditing ? _buildFloatingActionButton() : null,
+      floatingActionButton: isEditing ? _buildModernFAB() : null,
     );
   }
 
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      expandedHeight: 120,
-      floating: false,
-      pinned: true,
-      backgroundColor: Colors.white,
-      foregroundColor: AppColors.primaryDark,
-      elevation: 0,
-      flexibleSpace: FlexibleSpaceBar(
-        title: Text(
-          isEditing ? "Edit Site" : nameController.text,
-          style: const TextStyle(
-            color: AppColors.primaryDark,
-            fontWeight: FontWeight.w600,
+  // Web header content - horizontal layout with only Status and Progress
+  Widget _buildWebHeaderContent() {
+    return Row(
+      children: [
+        // Left side - Title and subtitle
+        Expanded(
+          flex: 3, // More space for title
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min, // ✅ Use minimum space
+            children: [
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: Text(
+                  isEditing ? 'Edit Site' : nameController.text,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24, // ✅ Smaller font size
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(height: 4), // ✅ Reduced spacing
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: Text(
+                  isEditing ? 'Modify construction site details' : 'Construction site overview',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12, // ✅ Smaller font size
+                    fontWeight: FontWeight.w400,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
-        titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
-      ),
-      actions: [
-        if (isEditing)
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            child: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+        const SizedBox(width: 24), // ✅ Reduced spacing
+        // Right side - Only Status and Progress (removed Budget and Radius)
+        Expanded(
+          flex: 2, // ✅ Reduced flex for smaller stat section
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildWebStatCard('Status', _getStatusText(), Icons.info_rounded),
                 ),
-                child: Icon(Icons.check, color: AppColors.success),
-              ),
-              onPressed: _updateSite,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildWebStatCard('Progress', '${_getProjectProgress()}%', Icons.trending_up_rounded),
+                ),
+              ],
             ),
           ),
+        ),
       ],
     );
   }
 
-  Widget _buildFloatingActionButton() {
-    return FloatingActionButton.extended(
-      onPressed: _updateSite,
-      label: const Text("Save Changes"),
-      icon: const Icon(Icons.save_rounded),
-      backgroundColor: AppColors.primary,
-      foregroundColor: Colors.white,
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  // Mobile header content - vertical layout with only Status and Progress
+  Widget _buildMobileHeaderContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min, // ✅ Use minimum space
+      children: [
+        FadeTransition(
+          opacity: _fadeAnimation,
+          child: Text(
+            isEditing ? 'Edit Site' : nameController.text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22, // ✅ Reduced font size
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.5,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(height: 4), // ✅ Reduced spacing
+        FadeTransition(
+          opacity: _fadeAnimation,
+          child: Text(
+            isEditing ? 'Modify construction site details' : 'Construction site overview',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12, // ✅ Smaller font size
+              fontWeight: FontWeight.w400,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(height: 12), // ✅ Reduced spacing
+        // Only Status and Progress in mobile (removed Budget and Radius)
+        FadeTransition(
+          opacity: _fadeAnimation,
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildMobileStatCard('Status', _getStatusText(), Icons.info_rounded),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildMobileStatCard('Progress', '${_getProjectProgress()}%', Icons.trending_up_rounded),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildWebLayout(BuildContext context) {
+  // Web content - two column layout
+  Widget _buildWebContent() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           flex: 6,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SiteDetailsHeader(
-                nameController: nameController,
-                isEditing: isEditing,
-                isActive: isActive,
-                onEditToggle: () => setState(() => isEditing = !isEditing),
-                onActiveToggle: (val) => setState(() => isActive = val),
+              _buildCard(
+                title: 'Site Information',
+                icon: Icons.location_city_rounded,
+                child: SiteDetailsHeader(
+                  nameController: nameController,
+                  isEditing: isEditing,
+                  isActive: isActive,
+                  onEditToggle: () => setState(() => isEditing = !isEditing),
+                  onActiveToggle: (val) => setState(() => isActive = val),
+                ),
+                isWeb: true,
               ),
-              const SizedBox(height: 24),
-              SiteDetailsLocationCard(
-                isEditing: isEditing,
-                adresseController: adresseController,
-                geofenceRadiusController: geofenceRadiusController,
-                geofenceLatController: geofenceLatController,
-                geofenceLngController: geofenceLngController,
+              const SizedBox(height: 16),
+              _buildCard(
+                title: 'Location & Geofence',
+                icon: Icons.location_on_rounded,
+                child: SiteDetailsLocationCard(
+                  isEditing: isEditing,
+                  adresseController: adresseController,
+                  geofenceRadiusController: geofenceRadiusController,
+                  geofenceLatController: geofenceLatController,
+                  geofenceLngController: geofenceLngController,
+                ),
+                isWeb: true,
               ),
-              const SizedBox(height: 20),
-              SiteDetailsDatesCard(
-                isEditing: isEditing,
-                startDate: startDate,
-                endDate: endDate,
-                onStartDateChanged: (date) => setState(() => startDate = date),
-                onEndDateChanged: (date) => setState(() => endDate = date),
+              const SizedBox(height: 16),
+              _buildCard(
+                title: 'Project Timeline',
+                icon: Icons.schedule_rounded,
+                child: SiteDetailsDatesCard(
+                  isEditing: isEditing,
+                  startDate: startDate,
+                  endDate: endDate,
+                  onStartDateChanged: (date) => setState(() => startDate = date),
+                  onEndDateChanged: (date) => setState(() => endDate = date),
+                ),
+                isWeb: true,
               ),
             ],
           ),
         ),
-        const SizedBox(width: 32),
+        const SizedBox(width: 24),
         Expanded(
           flex: 4,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SiteDetailsProjectInfoCard(
-                isEditing: isEditing,
-                budgetController: budgetController,
+              _buildCard(
+                title: 'Project Details',
+                icon: Icons.account_balance_wallet_rounded,
+                child: SiteDetailsProjectInfoCard(
+                  isEditing: isEditing,
+                  budgetController: budgetController,
+                ),
+                isWeb: true,
               ),
-              const SizedBox(height: 20),
-              SiteDetailsPeopleCard(
-                isEditing: isEditing,
-                ownerController: ownerController,
-                managerController: managerController,
+              const SizedBox(height: 16),
+              _buildCard(
+                title: 'Management Team',
+                icon: Icons.supervisor_account_rounded,
+                child: SiteDetailsPeopleCard(
+                  isEditing: isEditing,
+                  managerController: managerController,
+                  siteId: widget.site.id ?? '',
+                  managerId: widget.site.manager,
+                ),
+                isWeb: true,
               ),
-              if (isEditing) ...[
-                const SizedBox(height: 32),
-                _buildActionButtons(),
-              ],
             ],
           ),
         ),
@@ -286,82 +444,285 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     );
   }
 
-  Widget _buildMobileLayout(BuildContext context) {
+  // Mobile content - single column layout
+  Widget _buildMobileContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SiteDetailsHeader(
-          nameController: nameController,
-          isEditing: isEditing,
-          isActive: isActive,
-          onEditToggle: () => setState(() => isEditing = !isEditing),
-          onActiveToggle: (val) => setState(() => isActive = val),
+        _buildCard(
+          title: 'Site Information',
+          icon: Icons.location_city_rounded,
+          child: SiteDetailsHeader(
+            nameController: nameController,
+            isEditing: isEditing,
+            isActive: isActive,
+            onEditToggle: () => setState(() => isEditing = !isEditing),
+            onActiveToggle: (val) => setState(() => isActive = val),
+          ),
+          isWeb: false,
         ),
-        const SizedBox(height: 24),
-        SiteDetailsLocationCard(
-          isEditing: isEditing,
-          adresseController: adresseController,
-          geofenceRadiusController: geofenceRadiusController,
-          geofenceLatController: geofenceLatController,
-          geofenceLngController: geofenceLngController,
+        const SizedBox(height: 16),
+        _buildCard(
+          title: 'Location & Geofence',
+          icon: Icons.location_on_rounded,
+          child: SiteDetailsLocationCard(
+            isEditing: isEditing,
+            adresseController: adresseController,
+            geofenceRadiusController: geofenceRadiusController,
+            geofenceLatController: geofenceLatController,
+            geofenceLngController: geofenceLngController,
+          ),
+          isWeb: false,
         ),
-        const SizedBox(height: 20),
-        SiteDetailsDatesCard(
-          isEditing: isEditing,
-          startDate: startDate,
-          endDate: endDate,
-          onStartDateChanged: (date) => setState(() => startDate = date),
-          onEndDateChanged: (date) => setState(() => endDate = date),
+        const SizedBox(height: 16),
+        _buildCard(
+          title: 'Project Timeline',
+          icon: Icons.schedule_rounded,
+          child: SiteDetailsDatesCard(
+            isEditing: isEditing,
+            startDate: startDate,
+            endDate: endDate,
+            onStartDateChanged: (date) => setState(() => startDate = date),
+            onEndDateChanged: (date) => setState(() => endDate = date),
+          ),
+          isWeb: false,
         ),
-        const SizedBox(height: 20),
-        SiteDetailsProjectInfoCard(
-          isEditing: isEditing,
-          budgetController: budgetController,
+        const SizedBox(height: 16),
+        _buildCard(
+          title: 'Project Details',
+          icon: Icons.account_balance_wallet_rounded,
+          child: SiteDetailsProjectInfoCard(
+            isEditing: isEditing,
+            budgetController: budgetController,
+          ),
+          isWeb: false,
         ),
-        const SizedBox(height: 20),
-        SiteDetailsPeopleCard(
-          isEditing: isEditing,
-          ownerController: ownerController,
-          managerController: managerController,
+        const SizedBox(height: 16),
+        _buildCard(
+          title: 'Management Team',
+          icon: Icons.supervisor_account_rounded,
+          child: SiteDetailsPeopleCard(
+            isEditing: isEditing,
+            managerController: managerController,
+            siteId: widget.site.id ?? '',
+            managerId: widget.site.manager,
+          ),
+          isWeb: false,
         ),
-        if (isEditing) ...[
-          const SizedBox(height: 32),
-          _buildActionButtons(),
-        ],
         const SizedBox(height: 100), // Space for FAB
       ],
     );
   }
 
-  Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.save_rounded),
-            label: const Text("Save"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              elevation: 0,
+  // Web stat card - compact and simplified
+  Widget _buildWebStatCard(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // ✅ More compact padding
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Row( // ✅ Changed to Row layout for more compact design
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white, size: 14), // ✅ Smaller icon
+          const SizedBox(width: 6),
+          Flexible(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12, // ✅ Smaller font
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10, // ✅ Smaller font
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            onPressed: _updateSite,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Mobile stat card - compact and simplified
+  Widget _buildMobileStatCard(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), // ✅ More compact padding
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Row( // ✅ Changed to Row layout for more compact design
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white, size: 16), // ✅ Smaller icon
+          const SizedBox(width: 6),
+          Flexible(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12, // ✅ Smaller font
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10, // ✅ Smaller font
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Universal card builder that adapts to web/mobile
+  Widget _buildCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+    required bool isWeb,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(isWeb ? 12 : 16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Card header
+          Container(
+            padding: EdgeInsets.all(isWeb ? 16 : 20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(isWeb ? 12 : 16),
+                topRight: Radius.circular(isWeb ? 12 : 16),
+              ),
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade200),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(isWeb ? 6 : 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(isWeb ? 6 : 8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: const Color(0xFF3B82F6),
+                    size: isWeb ? 18 : 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: isWeb ? 14 : 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1F2937),
+                    ),
+                  ),
+                ),
+                // Add edit button only for Site Information card
+                if (title == 'Site Information')
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isEditing
+                          ? const Color(0xFFEF4444).withOpacity(0.1)
+                          : const Color(0xFF3B82F6).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(isWeb ? 6 : 8),
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        isEditing ? Icons.close_rounded : Icons.edit_rounded,
+                        color: isEditing ? const Color(0xFFEF4444) : const Color(0xFF3B82F6),
+                        size: isWeb ? 18 : 20,
+                      ),
+                      onPressed: () => setState(() => isEditing = !isEditing),
+                      tooltip: isEditing ? "Cancel" : "Edit Site",
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Card content
+          Padding(
+            padding: EdgeInsets.all(isWeb ? 16 : 20),
+            child: child,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernFAB() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        FloatingActionButton.extended(
+          onPressed: _updateSite,
+          backgroundColor: const Color(0xFF10B981),
+          foregroundColor: Colors.white,
+          elevation: 8,
+          icon: const Icon(Icons.save_rounded),
+          label: const Text(
+            'Save Changes',
+            style: TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: OutlinedButton.icon(
-            icon: const Icon(Icons.close_rounded),
-            label: const Text("Cancel"),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.error,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              side: BorderSide(color: AppColors.error.withOpacity(0.3)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            onPressed: () => setState(() => isEditing = false),
+        const SizedBox(height: 16),
+        FloatingActionButton.extended(
+          onPressed: () => setState(() => isEditing = false),
+          backgroundColor: const Color(0xFFEF4444),
+          foregroundColor: Colors.white,
+          elevation: 8,
+          icon: const Icon(Icons.close_rounded),
+          label: const Text(
+            'Cancel',
+            style: TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -374,11 +735,35 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     nameController.dispose();
     adresseController.dispose();
     budgetController.dispose();
-    ownerController.dispose();
     managerController.dispose();
     geofenceRadiusController.dispose();
     geofenceLatController.dispose();
     geofenceLngController.dispose();
     super.dispose();
   }
+}
+
+// Custom painter for geometric pattern
+class GeometricPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.05)
+      ..style = PaintingStyle.fill;
+
+    const spacing = 60.0;
+
+    for (double x = 0; x < size.width; x += spacing) {
+      for (double y = 0; y < size.height; y += spacing) {
+        // Draw small rectangles
+        canvas.drawRect(
+          Rect.fromLTWH(x, y, 30, 30),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

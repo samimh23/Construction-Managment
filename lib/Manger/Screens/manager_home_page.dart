@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
-
 import '../../auth/services/auth/auth_service.dart';
 import '../manager_provider/ManagerLocationProvider.dart';
 
@@ -22,7 +21,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _locationStarted = false;
 
-  String? ownerId; // <-- Store owner id here
+  String? ownerId;
 
   @override
   void initState() {
@@ -41,7 +40,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
       final managerId = currentUser?.id ?? "unknown";
 
       // Use your backend URL here
-      final url = Uri.parse('http://192.168.1.100:3000/users/$managerId');
+      final url = Uri.parse('http://192.168.95.4:3000/users/$managerId');
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
@@ -103,7 +102,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
             siteId: siteId,
             latitude: position.latitude,
             longitude: position.longitude,
-            ownerId: ownerId, // <-- Send ownerId with every location update!
+            ownerId: ownerId,
           );
         });
       });

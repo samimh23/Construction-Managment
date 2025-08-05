@@ -63,7 +63,7 @@ class ManagerLocationProvider extends ChangeNotifier {
       return;
     }
     print('[SOCKET] Connecting to Socket.IO');
-    _socket = IO.io('http://192.168.1.100:3000', <String, dynamic>{
+    _socket = IO.io('http://192.168.95.4:3000', <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': true,
     });

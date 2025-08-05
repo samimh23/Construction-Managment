@@ -5,7 +5,6 @@ import '../../Widget/Drawer.dart';
 import '../../Widget/Home/HomeTitle.dart';
 import '../../Widget/Home/homeTabSelector.dart';
 
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
@@ -23,18 +22,27 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 2,
         iconTheme: const IconThemeData(color: Colors.white),
         titleSpacing: 0,
-        title: Row(
-          children: const [
-            HomeTitle(),
-            Spacer(),
-          ],
+        // ✅ ALTERNATIVE: Use a more flexible layout
+        title: LayoutBuilder(
+          builder: (context, constraints) {
+            return Row(
+              children: [
+                // ✅ FIXED: Constrain HomeTitle width
+                Expanded(
+                  flex: 2,
+                  child: const HomeTitle(),
+                ),
+                // ✅ FIXED: Add some spacing
+                const SizedBox(width: 8),
+                // ✅ FIXED: Constrain HomeTabSelector width
+                Expanded(
+                  flex: 1,
+                  child: HomeTabSelector(selectedTab: selectedTab),
+                ),
+              ],
+            );
+          },
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: HomeTabSelector(selectedTab: selectedTab),
-          ),
-        ],
       ),
       drawer: AppDrawer(
         selectedIndex: selectedTab,

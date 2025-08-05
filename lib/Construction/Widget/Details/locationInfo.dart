@@ -19,57 +19,14 @@ class SiteDetailsLocationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 20,
-            spreadRadius: 0,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 20),
-            _buildAddressSection(),
-            const SizedBox(height: 20),
-            _buildCoordinatesSection(),
-            const SizedBox(height: 20),
-            _buildGeofenceSection(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.info.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(Icons.location_on_rounded, color: AppColors.info, size: 20),
-        ),
-        const SizedBox(width: 12),
-        const Text(
-          "Location & Geofence",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: AppColors.primaryDark,
-          ),
-        ),
+        _buildAddressSection(),
+        const SizedBox(height: 16),
+        _buildCoordinatesSection(),
+        const SizedBox(height: 16),
+        _buildGeofenceSection(),
       ],
     );
   }
@@ -83,7 +40,7 @@ class SiteDetailsLocationCard extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: AppColors.secondary,
+            color: Color(0xFF6B7280),
           ),
         ),
         const SizedBox(height: 8),
@@ -99,23 +56,37 @@ class SiteDetailsLocationCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.05),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.withOpacity(0.2)),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               children: [
-                Icon(Icons.location_city_rounded,
-                    color: AppColors.secondary.withOpacity(0.7), size: 20),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.location_city_rounded, color: Color(0xFF3B82F6), size: 16),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     adresseController.text.isNotEmpty ? adresseController.text : "No address provided",
                     style: TextStyle(
                       fontSize: 14,
+                      fontWeight: FontWeight.w500,
                       color: adresseController.text.isNotEmpty
-                          ? AppColors.primaryDark
-                          : AppColors.secondary.withOpacity(0.6),
+                          ? const Color(0xFF1F2937)
+                          : const Color(0xFF6B7280),
                     ),
                   ),
                 ),
@@ -135,20 +106,34 @@ class SiteDetailsLocationCard extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: AppColors.secondary,
+            color: Color(0xFF6B7280),
           ),
         ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.accent.withOpacity(0.05),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.accent.withOpacity(0.2)),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Row(
             children: [
-              Icon(Icons.my_location_rounded, color: AppColors.accent, size: 20),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(Icons.my_location_rounded, color: Color(0xFF10B981), size: 16),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -156,7 +141,7 @@ class SiteDetailsLocationCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.primaryDark,
+                    color: Color(0xFF1F2937),
                   ),
                 ),
               ),
@@ -176,7 +161,7 @@ class SiteDetailsLocationCard extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: AppColors.secondary,
+            color: Color(0xFF6B7280),
           ),
         ),
         const SizedBox(height: 12),
@@ -191,6 +176,7 @@ class SiteDetailsLocationCard extends StatelessWidget {
   Widget _buildGeofenceEditFields() {
     return Column(
       children: [
+        // Only radius is editable
         _buildStyledTextField(
           controller: geofenceRadiusController,
           hintText: "Radius (meters)",
@@ -198,23 +184,96 @@ class SiteDetailsLocationCard extends StatelessWidget {
           keyboardType: TextInputType.number,
         ),
         const SizedBox(height: 12),
+        // Coordinates are displayed as read-only
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6B7280).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.south_rounded, color: Color(0xFF6B7280), size: 16),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    "Latitude: ",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      geofenceLatController.text.isNotEmpty ? geofenceLatController.text : "Not set",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6B7280).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.east_rounded, color: Color(0xFF6B7280), size: 16),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    "Longitude: ",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      geofenceLngController.text.isNotEmpty ? geofenceLngController.text : "Not set",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Info text about coordinates
         Row(
           children: [
+            const Icon(Icons.info_outline, size: 16, color: Color(0xFF6B7280)),
+            const SizedBox(width: 8),
             Expanded(
-              child: _buildStyledTextField(
-                controller: geofenceLatController,
-                hintText: "Latitude",
-                prefixIcon: Icons.south_rounded,
-                keyboardType: TextInputType.number,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStyledTextField(
-                controller: geofenceLngController,
-                hintText: "Longitude",
-                prefixIcon: Icons.east_rounded,
-                keyboardType: TextInputType.number,
+              child: Text(
+                "Coordinates are automatically set based on site location",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ),
           ],
@@ -231,7 +290,7 @@ class SiteDetailsLocationCard extends StatelessWidget {
             Icons.radio_button_unchecked_rounded,
             "Radius",
             "${geofenceRadiusController.text} meters",
-            AppColors.info,
+            const Color(0xFF3B82F6),
           ),
         if (geofenceLatController.text.isNotEmpty && geofenceLngController.text.isNotEmpty) ...[
           const SizedBox(height: 8),
@@ -239,7 +298,7 @@ class SiteDetailsLocationCard extends StatelessWidget {
             Icons.gps_fixed_rounded,
             "Center",
             "${geofenceLatController.text}, ${geofenceLngController.text}",
-            AppColors.accent,
+            const Color(0xFF10B981),
           ),
         ],
       ],
@@ -248,22 +307,36 @@ class SiteDetailsLocationCard extends StatelessWidget {
 
   Widget _buildInfoRow(IconData icon, String label, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.2)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 18),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, color: color, size: 16),
+          ),
           const SizedBox(width: 12),
           Text(
             "$label: ",
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: AppColors.secondary,
+              color: Color(0xFF6B7280),
             ),
           ),
           Expanded(
@@ -272,7 +345,7 @@ class SiteDetailsLocationCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: AppColors.primaryDark,
+                color: Color(0xFF1F2937),
               ),
             ),
           ),
@@ -288,24 +361,33 @@ class SiteDetailsLocationCard extends StatelessWidget {
     TextInputType? keyboardType,
     int maxLines = 1,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      decoration: InputDecoration(
-        hintText: hintText,
-        prefixIcon: Icon(prefixIcon, color: AppColors.accent),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          hintText: hintText,
+          prefixIcon: Icon(prefixIcon, color: const Color(0xFF3B82F6), size: 20),
+          border: InputBorder.none,
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
-        ),
-        filled: true,
-        fillColor: Colors.grey.withOpacity(0.05),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     );
   }
