@@ -1,7 +1,4 @@
-import 'package:constructionproject/profile/screens/Profile_page.dart';
 import 'package:flutter/material.dart';
-
-import '../../Worker/Screens/worker_list_page.dart';
 
 class AppDrawer extends StatelessWidget {
   final int selectedIndex;
@@ -19,60 +16,95 @@ class AppDrawer extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            DrawerHeader(
-              child: Center(
-                child: Text(
-                  "Construction Manager",
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-            ),
-            _DrawerItem(
-              icon: Icons.map,
-              label: 'Map',
-              selected: selectedIndex == 0,
-              onTap: () {
-                Navigator.of(context).pop();
-                onSelect(0);
-              },
-            ),
-            _DrawerItem(
-              icon: Icons.manage_accounts,
-              label: 'Manage',
-              selected: selectedIndex == 1,
-              onTap: () {
-                Navigator.of(context).pop();
-                onSelect(1);
-              },
-            ),
-            _DrawerItem(
-              icon: Icons.person,
-              label: 'My Workers',
-              selected: selectedIndex == 2,
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => WorkerListPage()),
-                );
-              },
-            ),
-            _DrawerItem(
-              icon: Icons.account_circle,
-              label: 'Profile',
-              selected: selectedIndex == 3,
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const ProfilePage()),
-                );
-              },
-            ),
+            _buildHeader(context),
+            _buildNavigationItems(context),
             const Spacer(),
+            _buildFooter(context),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Theme.of(context).primaryColor,
+            Theme.of(context).primaryColor.withOpacity(0.8),
+          ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.construction,
+            color: Colors.white,
+            size: 40,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Construction",
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            "Manager",
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Colors.white70,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavigationItems(BuildContext context) {
+    final items = [
+      _NavigationItem(Icons.map, 'Map View', 0),
+      _NavigationItem(Icons.manage_accounts, 'Manage Sites', 1),
+      _NavigationItem(Icons.person, 'My Workers', 2),
+      _NavigationItem(Icons.account_circle, 'Profile', 3),
+    ];
+
+    return Column(
+      children: items.map((item) => _DrawerItem(
+        icon: item.icon,
+        label: item.label,
+        selected: selectedIndex == item.index,
+        onTap: () {
+          Navigator.of(context).pop();
+          onSelect(item.index);
+        },
+      )).toList(),
+    );
+  }
+
+  Widget _buildFooter(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Text(
+        "Version 1.0.0",
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Colors.grey,
+        ),
+      ),
+    );
+  }
+}
+
+class _NavigationItem {
+  final IconData icon;
+  final String label;
+  final int index;
+
+  _NavigationItem(this.icon, this.label, this.index);
 }
 
 class _DrawerItem extends StatelessWidget {
@@ -80,6 +112,7 @@ class _DrawerItem extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+
   const _DrawerItem({
     required this.icon,
     required this.label,
@@ -89,11 +122,27 @@ class _DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: selected ? Colors.blue : null),
-      title: Text(label, style: TextStyle(color: selected ? Colors.blue : null)),
-      selected: selected,
-      onTap: onTap,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: selected ? Theme.of(context).primaryColor : Colors.grey.shade600,
+        ),
+        title: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Theme.of(context).primaryColor : Colors.grey.shade800,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+        selected: selected,
+        selectedTileColor: Theme.of(context).primaryColor.withOpacity(0.1),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        onTap: onTap,
+      ),
     );
   }
 }

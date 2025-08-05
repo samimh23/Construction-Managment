@@ -5,12 +5,14 @@ class HomeTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Text(
+    final isMobile = MediaQuery.of(context).size.width < 768;
+
+    return Text(
       "Construction Manager",
       style: TextStyle(
         color: Colors.white,
         fontWeight: FontWeight.bold,
-        fontSize: 20,
+        fontSize: isMobile ? 18 : 22,
         letterSpacing: 0.5,
       ),
     );

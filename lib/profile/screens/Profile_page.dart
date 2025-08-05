@@ -446,6 +446,20 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ),
+        const SizedBox(width: 12),
+        OutlinedButton.icon(
+          onPressed: () => _showLogoutDialog(context),
+          icon: const Icon(Icons.logout, size: 18),
+          label: const Text('Logout'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.red[600],
+            side: BorderSide(color: Colors.red[600]!),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
       ],
     );
   }

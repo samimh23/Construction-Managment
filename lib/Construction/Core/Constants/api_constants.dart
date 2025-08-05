@@ -2,6 +2,7 @@ class ApiConstants {
   static const String productionBaseUrl = 'https://your-api-url.com/api';
   static const String localBaseUrl = 'https://dfe337d7-d01d-4231-a2c1-041f7ce4e916-00-eztmonulzysw.riker.replit.dev/';
   // Switch between environments easily
+
   static const String baseUrl = localBaseUrl; // Change to productionBaseUrl for production
 
   // Endpoints (must be relative, not full URLs)

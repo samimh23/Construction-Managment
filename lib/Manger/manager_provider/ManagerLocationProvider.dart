@@ -1,5 +1,8 @@
+import 'package:constructionproject/Construction/Core/Constants/api_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+
+/// Updated to handle ownerId and correct payloads for both manager and owner.
 
 class ManagerLocation {
   final String managerId;
@@ -7,6 +10,7 @@ class ManagerLocation {
   final double longitude;
   final String? siteId;
   final String? timestamp;
+  final String? ownerId;
 
   ManagerLocation({
     required this.managerId,
@@ -14,6 +18,7 @@ class ManagerLocation {
     required this.longitude,
     this.siteId,
     this.timestamp,
+    this.ownerId,
   });
 
   factory ManagerLocation.fromJson(Map<String, dynamic> json) {
@@ -23,6 +28,7 @@ class ManagerLocation {
       longitude: (json['longitude'] as num).toDouble(),
       siteId: json['siteId']?.toString(),
       timestamp: json['timestamp']?.toString(),
+      ownerId: json['ownerId']?.toString(),
     );
   }
 }
@@ -30,38 +36,54 @@ class ManagerLocation {
 class ManagerLocationProvider extends ChangeNotifier {
   IO.Socket? _socket;
   final List<ManagerLocation> _managers = [];
+  final List<VoidCallback> _onConnectedCallbacks = [];
 
   List<ManagerLocation> get managers => List.unmodifiable(_managers);
 
-  void connect(String managerId, String siteId) {
-    if (_socket != null && _socket!.connected) return;
-    print('[SOCKET] Connecting to Socket.IO as $managerId for site $siteId');
-    _socket = IO.io('http://192.168.115.19:3000', <String, dynamic>{
+  void onConnected(VoidCallback callback) {
+    _onConnectedCallbacks.add(callback);
+  }
+
+  /// Manager connect - used when manager is logged in (requires ownerId)
+  void connectAsManager(String managerId, String siteId, String ownerId) {
+    _baseConnect();
+    // Optionally send initial location or wait for location update events
+    // You may also send a dummy location if needed here
+  }
+
+  /// Owner connect - used when owner wants to listen for his managers
+  void connectAsOwner() {
+    _baseConnect();
+    // Owner just listens, doesn't send location
+  }
+
+  void _baseConnect() {
+    if (_socket != null && _socket!.connected) {
+      for (final cb in _onConnectedCallbacks) cb();
+      _onConnectedCallbacks.clear();
+      return;
+    }
+    print('[SOCKET] Connecting to Socket.IO');
+    _socket = IO.io(ApiConstants.baseUrl, <String, dynamic>{
       'transports': ['websocket'],
       'autoConnect': true,
     });
 
     _socket!.onConnect((_) {
       print('[SOCKET] Connected to Socket.IO');
-      // If your backend expects a join event, emit it here
-      // _socket!.emit('ownerJoin', {'role': 'owner'});
+      for (final cb in _onConnectedCallbacks) cb();
+      _onConnectedCallbacks.clear();
       notifyListeners();
     });
 
-    // Listen for both possible event names!
     _socket!.on('connectedManagers', (data) {
       print('[SOCKET] Received connectedManagers event: $data');
       _updateManagersFromSocketData(data);
     });
 
-    _socket!.on('managers', (data) {
-      print('[SOCKET] Received managers event: $data');
-      // If the data is { managers: [...] }
-      if (data is Map && data['managers'] is List) {
-        _updateManagersFromSocketData(data['managers']);
-      } else {
-        _updateManagersFromSocketData(data);
-      }
+    _socket!.on('myManagersLocations', (data) {
+      print('[SOCKET] Received myManagersLocations event: $data');
+      _updateManagersFromSocketData(data);
     });
 
     _socket!.onDisconnect((_) {
@@ -76,10 +98,8 @@ class ManagerLocationProvider extends ChangeNotifier {
       for (var item in data) {
         try {
           if (item is Map<String, dynamic>) {
-            print('[SOCKET] Manager location from server: $item');
             _managers.add(ManagerLocation.fromJson(item));
           } else if (item is Map) {
-            print('[SOCKET] Manager location from server (force cast): $item');
             _managers.add(ManagerLocation.fromJson(Map<String, dynamic>.from(item)));
           }
         } catch (e) {
@@ -87,15 +107,16 @@ class ManagerLocationProvider extends ChangeNotifier {
         }
       }
     }
-    print('[SOCKET] Manager locations count after update: ${_managers.length}');
     notifyListeners();
   }
 
+  /// MANAGER: Send location (must include ownerId)
   void sendLocation({
     required String managerId,
     required String siteId,
     required double latitude,
     required double longitude,
+    required String ownerId,
   }) {
     if (_socket == null || !_socket!.connected) {
       print('[SOCKET] Not connected. Cannot send location.');
@@ -107,9 +128,19 @@ class ManagerLocationProvider extends ChangeNotifier {
       'longitude': longitude,
       'timestamp': DateTime.now().toIso8601String(),
       'siteId': siteId,
+      'ownerId': ownerId,
     };
-    print('[SOCKET] Sending managerLocation: $payload');
     _socket!.emit('managerLocation', payload);
+  }
+
+  /// OWNER: Request all my managers' locations by sending only ownerId
+  void requestManagersForOwner(String ownerId) {
+    if (_socket == null || !_socket!.connected) {
+      print('[SOCKET] Not connected. Cannot request managers.');
+      return;
+    }
+    print('[SOCKET] Requesting managers for owner: $ownerId');
+    _socket!.emit('getMyManagersLocations', ownerId);
   }
 
   @override
