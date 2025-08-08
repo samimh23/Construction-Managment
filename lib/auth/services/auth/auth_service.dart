@@ -303,6 +303,45 @@ class AuthService {
       _sharedPreferences.remove(_userKey),
     ]);
   }
+  // ... (existing AuthService code above)
+
+  /// Send a password reset code to the user's email
+  Future<void> requestPasswordResetCode(String email) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.forgotPasswordEndpoint,
+        data: {'email': email},
+      );
+      // Optionally, handle the response if needed
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    } catch (e) {
+      throw AppException('Failed to send reset code: ${e.toString()}');
+    }
+  }
+
+  /// Reset the password using the code sent to email
+  Future<void> resetPasswordWithCode({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.resetPasswordWithCodeEndpoint,
+        data: {
+          'email': email,
+          'code': code,
+          'newPassword': newPassword,
+        },
+      );
+      // Optionally, handle the response if needed
+    } on DioException catch (e) {
+      throw _handleDioException(e);
+    } catch (e) {
+      throw AppException('Failed to reset password: ${e.toString()}');
+    }
+  }
 
   /// Enhanced error handling with specific exception types
   AppException _handleDioException(DioException e) {

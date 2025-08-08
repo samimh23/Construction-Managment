@@ -243,6 +243,8 @@ class _LoginScreenState extends State<LoginScreen> {
           onEmailChanged: _onEmailChanged,
           onLogin: _handleLogin,
         ),
+        // Add "Forgot Password?" link here
+
         SizedBox(height: isSmallScreen ? 16 : 24),
         const RegisterLink(),
       ],

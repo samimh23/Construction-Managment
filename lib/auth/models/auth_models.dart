@@ -33,14 +33,16 @@ class LoginRequest extends Equatable {
 }
 
 class RegisterRequest extends Equatable {
-  final String fullName;
+  final String firstName;
+  final String lastName;
   final String email;
   final String phone;
   final String company;
   final String password;
 
   const RegisterRequest({
-    required this.fullName,
+    required this.firstName,
+    required this.lastName,
     required this.email,
     required this.phone,
     required this.company,
@@ -49,7 +51,8 @@ class RegisterRequest extends Equatable {
 
   factory RegisterRequest.fromJson(Map<String, dynamic> json) {
     return RegisterRequest(
-      fullName: json['fullName'] as String,
+      firstName: json['firstName'] as String,
+      lastName: json['lastName'] as String,
       email: json['email'] as String,
       phone: json['phone'] as String,
       company: json['company'] as String,
@@ -59,7 +62,8 @@ class RegisterRequest extends Equatable {
 
   Map<String, dynamic> toJson() {
     return {
-      'fullName': fullName,
+      'firstName': firstName,
+      'lastName': lastName,
       'email': email,
       'phone': phone,
       'company': company,
@@ -68,7 +72,7 @@ class RegisterRequest extends Equatable {
   }
 
   @override
-  List<Object?> get props => [fullName, email, phone, company, password];
+  List<Object?> get props => [firstName, lastName, email, phone, company, password];
 }
 
 class AuthResponse extends Equatable {

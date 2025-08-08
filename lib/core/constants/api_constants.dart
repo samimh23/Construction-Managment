@@ -1,21 +1,21 @@
 class ApiConstants {
   // Base URLs
-  static const String productionBaseUrl = 'https://your-api-url.com/api';
-  static const String localBaseUrl = 'https://dfe337d7-d01d-4231-a2c1-041f7ce4e916-00-eztmonulzysw.riker.replit.dev';
+  static const String productionBaseUrl = 'http://192.168.95.19:3000/';
+  static const String localBaseUrl = 'http://10.101.249.19:3000';
 
   // Use this to switch between environments
   static const String baseUrl = localBaseUrl; // Change to productionBaseUrl for production
 
   // API Endpoints
   static const String loginEndpoint = '/auth/login';
-  static const String registerEndpoint = '/auth/register';
+  static const String registerEndpoint = '/auth/register-owner';
   static const String logoutEndpoint = '/auth/logout';
   static const String refreshTokenEndpoint = '/auth/refresh';
-  static const String forgotPasswordEndpoint = '/auth/forgot-password';
   static const String resetPasswordEndpoint = '/auth/reset-password';
   static const String verifyEmailEndpoint = '/auth/verify-email';
   static const String resendVerificationEndpoint = '/auth/resend-verification';
-
+  static const String forgotPasswordEndpoint = '/users/forgot-password';
+  static const String resetPasswordWithCodeEndpoint = '/users/reset-password-with-code';
   // User Endpoints
 
   static const String changePasswordEndpoint = '/user/change-password';
