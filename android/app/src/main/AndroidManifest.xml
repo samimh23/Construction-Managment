@@ -2,12 +2,12 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
-
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="constructionproject"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true"> <!-- ✅ Add this line -->
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".MainActivity"

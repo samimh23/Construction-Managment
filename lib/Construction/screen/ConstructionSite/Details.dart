@@ -1,6 +1,8 @@
+import 'package:constructionproject/auth/services/auth/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
+import 'package:provider/provider.dart';
 
 import '../../Core/Constants/app_colors.dart';
 import '../../Model/Constructionsite/ConstructionSiteModel.dart';
@@ -76,14 +78,15 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
       _showSnackBar("Site ID is missing! Cannot update.", isError: true);
       return;
     }
-
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final currentUser = await authService.getCurrentUser();
     final endpoint = '${ApiConstants.UpdateConstructionsite}${widget.site.id}';
 
     final updatedSite = {
       "name": nameController.text,
       "adresse": adresseController.text,
       "Budget": budgetController.text.isNotEmpty ? budgetController.text : null,
-      "owner": "AyariAladine", // Set as current user
+      "owner": currentUser, // Set as current user
       "manager": managerController.text,
       "GeoLocation": {
         "longitude": widget.site.longitude.toString(),
@@ -187,7 +190,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
         slivers: [
           // Compact SliverAppBar - FIXED HEIGHT
           SliverAppBar(
-            expandedHeight: isWeb ? 120 : 160, // ✅ Much smaller heights
+            expandedHeight: isWeb ? 120 : 160,
             floating: false,
             pinned: true,
             elevation: 0,
@@ -251,7 +254,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
           flex: 3, // More space for title
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min, // ✅ Use minimum space
+            mainAxisSize: MainAxisSize.min,
             children: [
               FadeTransition(
                 opacity: _fadeAnimation,
