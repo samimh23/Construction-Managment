@@ -81,6 +81,48 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Add these to your AuthProvider class
+
+  Future<bool> sendResetCode(String email) async {
+    try {
+      _setLoading();
+      await _authService.requestPasswordResetCode(email);
+      _errorMessage = null;
+      _status = AuthStatus.unauthenticated; // or keep current
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _status = AuthStatus.unauthenticated; // or keep current
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> resetPasswordWithCode({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    try {
+      _setLoading();
+      await _authService.resetPasswordWithCode(
+        email: email,
+        code: code,
+        newPassword: newPassword,
+      );
+      _errorMessage = null;
+      _status = AuthStatus.unauthenticated; // User needs to log in after reset
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     try {
       await _authService.logout();

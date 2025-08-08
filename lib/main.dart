@@ -8,6 +8,9 @@ import 'package:constructionproject/Worker/Provider/worker_provider.dart';
 import 'package:constructionproject/Worker/Screens/worker_list_page.dart';
 import 'package:constructionproject/Worker/Service/worker_service.dart';
 import 'package:constructionproject/auth/Providers/auth_provider.dart';
+import 'package:constructionproject/auth/Widgets/Forms/confirm_code_screeb.dart';
+import 'package:constructionproject/auth/Widgets/Forms/forget_password_screen.dart';
+import 'package:constructionproject/auth/Widgets/Forms/reset_password_scrren.dart';
 import 'package:constructionproject/auth/screens/auth/LoginPage.dart';
 import 'package:constructionproject/auth/screens/auth/register_screen.dart';
 import 'package:constructionproject/auth/services/auth/auth_service.dart';
@@ -150,6 +153,9 @@ class MyApp extends StatelessWidget {
           },
           '/profile': (context) => const ProfilePage(),
           '/owner': (context) => const HomeScreen(),
+          '/forgot-password': (context) => const ForgotPasswordScreen(),
+          '/confirm-code': (context) => const ConfirmCodeScreen(),
+          '/reset-password': (context) => const ResetPasswordScreen(),
         },
       ),
     );

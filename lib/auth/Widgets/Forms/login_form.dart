@@ -142,8 +142,8 @@ class _RememberMeRow extends StatelessWidget {
         TextButton(
           key: const Key('forgot_password_button'),
           onPressed: () {
-            // Navigator.of(context).pushNamed('/forgot-password');
-            // TODO: Implement forgot password functionality
+             Navigator.of(context).pushNamed('/forgot-password');
+
           },
           child: const Text('Forgot Password?'),
         ),
