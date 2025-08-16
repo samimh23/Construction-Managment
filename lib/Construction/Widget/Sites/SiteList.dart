@@ -163,10 +163,9 @@ class SiteList extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Smaller icon for web
             Container(
-              width: 40, // Reduced from 56
-              height: 40, // Reduced from 56
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: statusColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12), // Reduced radius
@@ -250,27 +249,10 @@ class SiteList extends StatelessWidget {
           ],
         ),
 
-        // Owner - Compact
-        if (site.owner.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(Icons.business_outlined, size: 12, color: Colors.grey[500]),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  site.owner,
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ],
 
-        const Spacer(), // Push metrics to bottom
 
-        // Bottom Metrics - Compact
+        const Spacer(),
+
         if (site.budget != null || site.endDate != null) ...[
           const SizedBox(height: 8),
           Row(
