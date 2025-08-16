@@ -6,6 +6,7 @@ class SiteDetailsLocationCard extends StatelessWidget {
   final TextEditingController geofenceRadiusController;
   final TextEditingController geofenceLatController;
   final TextEditingController geofenceLngController;
+  final void Function(double lat, double lng)? onGoToMap;
 
   const SiteDetailsLocationCard({
     super.key,
@@ -14,16 +15,20 @@ class SiteDetailsLocationCard extends StatelessWidget {
     required this.geofenceRadiusController,
     required this.geofenceLatController,
     required this.geofenceLngController,
+    this.onGoToMap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final latText = geofenceLatController.text;
+    final lngText = geofenceLngController.text;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildAddressSection(),
         const SizedBox(height: 16),
-        _buildCoordinatesSection(),
+        _buildCoordinatesSection(context, latText, lngText),
         const SizedBox(height: 16),
         _buildGeofenceSection(),
       ],
@@ -96,7 +101,11 @@ class SiteDetailsLocationCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCoordinatesSection() {
+  Widget _buildCoordinatesSection(BuildContext context, String lat, String lng) {
+    final latIsValid = lat.isNotEmpty && double.tryParse(lat) != null;
+    final lngIsValid = lng.isNotEmpty && double.tryParse(lng) != null;
+    final canShowButton = latIsValid && lngIsValid && onGoToMap != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -136,7 +145,9 @@ class SiteDetailsLocationCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  "Lat: ${geofenceLatController.text}, Lng: ${geofenceLngController.text}",
+                  latIsValid && lngIsValid
+                      ? "$lat, $lng"
+                      : "No coordinates provided",
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -144,6 +155,26 @@ class SiteDetailsLocationCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (canShowButton)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.map_rounded, size: 16),
+                    label: const Text("Go to map", style: TextStyle(fontSize: 13)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      minimumSize: const Size(0, 36),
+                    ),
+                    onPressed: () {
+                      final double latVal = double.parse(lat);
+                      final double lngVal = double.parse(lng);
+                      onGoToMap!(latVal, lngVal);
+                    },
+                  ),
+                ),
             ],
           ),
         ),
@@ -191,70 +222,28 @@ class SiteDetailsLocationCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.grey.shade200),
           ),
-          child: Column(
+          child: Row(
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6B7280).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Icon(Icons.south_rounded, color: Color(0xFF6B7280), size: 16),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    "Latitude: ",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF6B7280),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      geofenceLatController.text.isNotEmpty ? geofenceLatController.text : "Not set",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ),
-                  ),
-                ],
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6B7280).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(Icons.gps_fixed_rounded, color: Color(0xFF6B7280), size: 16),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6B7280).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Icon(Icons.east_rounded, color: Color(0xFF6B7280), size: 16),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  geofenceLatController.text.isNotEmpty && geofenceLngController.text.isNotEmpty
+                      ? "${geofenceLatController.text}, ${geofenceLngController.text}"
+                      : "Coordinates are set automatically",
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF1F2937),
                   ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    "Longitude: ",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF6B7280),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      geofenceLngController.text.isNotEmpty ? geofenceLngController.text : "Not set",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF1F2937),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
@@ -291,15 +280,6 @@ class SiteDetailsLocationCard extends StatelessWidget {
             "${geofenceRadiusController.text} meters",
             const Color(0xFF3B82F6),
           ),
-        if (geofenceLatController.text.isNotEmpty && geofenceLngController.text.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _buildInfoRow(
-            Icons.gps_fixed_rounded,
-            "Center",
-            "${geofenceLatController.text}, ${geofenceLngController.text}",
-            const Color(0xFF10B981),
-          ),
-        ],
       ],
     );
   }

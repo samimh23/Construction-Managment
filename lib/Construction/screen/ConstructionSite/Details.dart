@@ -2,6 +2,7 @@ import 'package:constructionproject/auth/services/auth/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../Core/Constants/app_colors.dart';
@@ -12,6 +13,9 @@ import '../../Widget/Details/WorkersCard.dart';
 import '../../Widget/Details/dateCard.dart';
 import '../../Widget/Details/header.dart';
 import '../../Widget/Details/locationInfo.dart';
+
+import '../../Widget/Sites/SiteMap.dart';
+import 'Home.dart';
 
 class SiteDetailsScreen extends StatefulWidget {
   final ConstructionSite site;
@@ -86,7 +90,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
       "name": nameController.text,
       "adresse": adresseController.text,
       "Budget": budgetController.text.isNotEmpty ? budgetController.text : null,
-      "owner": currentUser, // Set as current user
+      "owner": currentUser,
       "manager": managerController.text,
       "GeoLocation": {
         "longitude": widget.site.longitude.toString(),
@@ -126,6 +130,42 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
         _showSnackBar("Site updated successfully!", isError: false);
       } else {
         _showSnackBar("Failed to update site", isError: true);
+      }
+    } catch (e) {
+      _showSnackBar("Network error occurred", isError: true);
+    }
+  }
+
+  Future<void> _deleteSite() async {
+    if (widget.site.id == null || widget.site.id!.isEmpty) {
+      _showSnackBar("Site ID is missing! Cannot delete.", isError: true);
+      return;
+    }
+    final endpoint = '${ApiConstants.DeleteConstructionsite}${widget.site.id}';
+
+    try {
+      final response = await dio.delete(endpoint);
+
+      if (response.statusCode == ApiConstants.statusOk ||
+          response.statusCode == ApiConstants.statusNoContent) {
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.delete_forever, color: Colors.white),
+                  const SizedBox(width: 12),
+                  const Expanded(child: Text("Site deleted successfully!")),
+                ],
+              ),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } else {
+        _showSnackBar("Failed to delete site", isError: true);
       }
     } catch (e) {
       _showSnackBar("Network error occurred", isError: true);
@@ -180,78 +220,153 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     return ((elapsed / total) * 100).round();
   }
 
+  void _goToMapTab(BuildContext context) {
+    final double? lat = double.tryParse(geofenceLatController.text);
+    final double? lng = double.tryParse(geofenceLngController.text);
+
+    LatLng? initialCenter;
+    if (lat != null && lng != null) {
+      initialCenter = LatLng(lat, lng);
+    } else if (widget.site.latitude != null && widget.site.longitude != null) {
+      initialCenter = LatLng(widget.site.latitude!, widget.site.longitude!);
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => HomeScreen(
+          mapInitialCenter: initialCenter,
+          mapInitialZoom: 17,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isWeb = isWebLayout(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: CustomScrollView(
-        slivers: [
-          // Compact SliverAppBar - FIXED HEIGHT
-          SliverAppBar(
-            expandedHeight: isWeb ? 120 : 160,
-            floating: false,
-            pinned: true,
-            elevation: 0,
-            backgroundColor: Colors.transparent,
-            foregroundColor: Colors.white,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF1E3A8A),
-                      Color(0xFF3B82F6),
-                      Color(0xFF06B6D4),
-                    ],
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    // Simple pattern using CustomPaint
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: GeometricPatternPainter(),
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: isWeb ? 120 : 160,
+                floating: false,
+                pinned: true,
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF1E3A8A),
+                          Color(0xFF3B82F6),
+                          Color(0xFF06B6D4),
+                        ],
                       ),
                     ),
-                    // Content that adapts to screen size
-                    Positioned(
-                      bottom: 16, // Reduced bottom padding
-                      left: 20,
-                      right: 20,
-                      child: isWeb ? _buildWebHeaderContent() : _buildMobileHeaderContent(),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: GeometricPatternPainter(),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 16,
+                          left: 20,
+                          right: 20,
+                          child: isWeb ? _buildWebHeaderContent() : _buildMobileHeaderContent(),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-          // Content that adapts to screen size
-          SliverPadding(
-            padding: EdgeInsets.all(isWeb ? 24.0 : 16.0),
-            sliver: SliverToBoxAdapter(
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: isWeb ? _buildWebContent() : _buildMobileContent(),
+              SliverPadding(
+                padding: EdgeInsets.all(isWeb ? 24.0 : 16.0),
+                sliver: SliverToBoxAdapter(
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: isWeb ? _buildWebContent(context) : _buildMobileContent(context),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),
-      floatingActionButton: isEditing ? _buildModernFAB() : null,
+      floatingActionButton: FutureBuilder(
+        future: Provider.of<AuthService>(context, listen: false).getCurrentUser(),
+        builder: (context, snapshot) {
+          final user = snapshot.data;
+          final isOwner = user != null && user.id == widget.site.owner;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              FloatingActionButton(
+                heroTag: 'editBtn',
+                backgroundColor: isEditing ? const Color(0xFFEF4444) : const Color(0xFF3B82F6),
+                onPressed: () => setState(() => isEditing = !isEditing),
+                child: Icon(isEditing ? Icons.close_rounded : Icons.edit_rounded, color: Colors.white),
+                tooltip: isEditing ? "Cancel" : "Edit Site",
+              ),
+              const SizedBox(height: 12),
+              if (isOwner)
+                FloatingActionButton(
+                  heroTag: 'deleteBtn',
+                  backgroundColor: const Color(0xFFEF4444),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Delete Site'),
+                        content: const Text('Are you sure you want to delete this site?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () => Navigator.of(ctx).pop(true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.error,
+                            ),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm ?? false) {
+                      await _deleteSite();
+                    }
+                  },
+                  child: const Icon(Icons.delete_rounded, color: Colors.white),
+                  tooltip: "Delete Site",
+                ),
+              if (isEditing) ...[
+                const SizedBox(height: 24),
+                _buildModernFAB(),
+              ],
+            ],
+          );
+        },
+      ),
     );
   }
 
-  // Web header content - horizontal layout with only Status and Progress
   Widget _buildWebHeaderContent() {
     return Row(
       children: [
-        // Left side - Title and subtitle
         Expanded(
-          flex: 3, // More space for title
+          flex: 3,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -262,7 +377,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
                   isEditing ? 'Edit Site' : nameController.text,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 24, // ✅ Smaller font size
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     letterSpacing: -0.5,
                   ),
@@ -270,14 +385,14 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const SizedBox(height: 4), // ✅ Reduced spacing
+              const SizedBox(height: 4),
               FadeTransition(
                 opacity: _fadeAnimation,
                 child: Text(
                   isEditing ? 'Modify construction site details' : 'Construction site overview',
                   style: const TextStyle(
                     color: Colors.white70,
-                    fontSize: 12, // ✅ Smaller font size
+                    fontSize: 12,
                     fontWeight: FontWeight.w400,
                   ),
                   maxLines: 1,
@@ -287,10 +402,9 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
             ],
           ),
         ),
-        const SizedBox(width: 24), // ✅ Reduced spacing
-        // Right side - Only Status and Progress (removed Budget and Radius)
+        const SizedBox(width: 24),
         Expanded(
-          flex: 2, // ✅ Reduced flex for smaller stat section
+          flex: 2,
           child: FadeTransition(
             opacity: _fadeAnimation,
             child: Row(
@@ -310,11 +424,10 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     );
   }
 
-  // Mobile header content - vertical layout with only Status and Progress
   Widget _buildMobileHeaderContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min, // ✅ Use minimum space
+      mainAxisSize: MainAxisSize.min,
       children: [
         FadeTransition(
           opacity: _fadeAnimation,
@@ -322,7 +435,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
             isEditing ? 'Edit Site' : nameController.text,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 22, // ✅ Reduced font size
+              fontSize: 22,
               fontWeight: FontWeight.bold,
               letterSpacing: -0.5,
             ),
@@ -330,22 +443,21 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        const SizedBox(height: 4), // ✅ Reduced spacing
+        const SizedBox(height: 4),
         FadeTransition(
           opacity: _fadeAnimation,
           child: Text(
             isEditing ? 'Modify construction site details' : 'Construction site overview',
             style: const TextStyle(
               color: Colors.white70,
-              fontSize: 12, // ✅ Smaller font size
+              fontSize: 12,
               fontWeight: FontWeight.w400,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        const SizedBox(height: 12), // ✅ Reduced spacing
-        // Only Status and Progress in mobile (removed Budget and Radius)
+        const SizedBox(height: 12),
         FadeTransition(
           opacity: _fadeAnimation,
           child: Row(
@@ -364,8 +476,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     );
   }
 
-  // Web content - two column layout
-  Widget _buildWebContent() {
+  Widget _buildWebContent(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -395,6 +506,9 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
                   geofenceRadiusController: geofenceRadiusController,
                   geofenceLatController: geofenceLatController,
                   geofenceLngController: geofenceLngController,
+                  onGoToMap: (lat, lng) {
+                    _goToMapTab(context);
+                  },
                 ),
                 isWeb: true,
               ),
@@ -447,8 +561,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     );
   }
 
-  // Mobile content - single column layout
-  Widget _buildMobileContent() {
+  Widget _buildMobileContent(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -474,6 +587,9 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
             geofenceRadiusController: geofenceRadiusController,
             geofenceLatController: geofenceLatController,
             geofenceLngController: geofenceLngController,
+            onGoToMap: (lat, lng) {
+              _goToMapTab(context);
+            },
           ),
           isWeb: false,
         ),
@@ -507,29 +623,28 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
           child: SiteDetailsPeopleCard(
             isEditing: isEditing,
             managerController: managerController,
-            siteId: widget.site.id ,
+            siteId: widget.site.id,
             managerId: widget.site.manager,
           ),
           isWeb: false,
         ),
-        const SizedBox(height: 100), // Space for FAB
+        const SizedBox(height: 100),
       ],
     );
   }
 
-  // Web stat card - compact and simplified
   Widget _buildWebStatCard(String label, String value, IconData icon) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // ✅ More compact padding
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.white.withOpacity(0.2)),
       ),
-      child: Row( // ✅ Changed to Row layout for more compact design
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: Colors.white, size: 14), // ✅ Smaller icon
+          Icon(icon, color: Colors.white, size: 14),
           const SizedBox(width: 6),
           Flexible(
             child: Column(
@@ -540,7 +655,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
                   value,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 12, // ✅ Smaller font
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
                   maxLines: 1,
@@ -550,7 +665,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
                   label,
                   style: const TextStyle(
                     color: Colors.white70,
-                    fontSize: 10, // ✅ Smaller font
+                    fontSize: 10,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -563,19 +678,18 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     );
   }
 
-  // Mobile stat card - compact and simplified
   Widget _buildMobileStatCard(String label, String value, IconData icon) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), // ✅ More compact padding
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.white.withOpacity(0.2)),
       ),
-      child: Row( // ✅ Changed to Row layout for more compact design
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: Colors.white, size: 16), // ✅ Smaller icon
+          Icon(icon, color: Colors.white, size: 16),
           const SizedBox(width: 6),
           Flexible(
             child: Column(
@@ -586,7 +700,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
                   value,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 12, // ✅ Smaller font
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
                   maxLines: 1,
@@ -596,7 +710,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
                   label,
                   style: const TextStyle(
                     color: Colors.white70,
-                    fontSize: 10, // ✅ Smaller font
+                    fontSize: 10,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -609,7 +723,6 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     );
   }
 
-  // Universal card builder that adapts to web/mobile
   Widget _buildCard({
     required String title,
     required IconData icon,
@@ -631,7 +744,6 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Card header
           Container(
             padding: EdgeInsets.all(isWeb ? 16 : 20),
             decoration: BoxDecoration(
@@ -669,29 +781,9 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
                     ),
                   ),
                 ),
-                // Add edit button only for Site Information card
-                if (title == 'Site Information')
-                  Container(
-                    decoration: BoxDecoration(
-                      color: isEditing
-                          ? const Color(0xFFEF4444).withOpacity(0.1)
-                          : const Color(0xFF3B82F6).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(isWeb ? 6 : 8),
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        isEditing ? Icons.close_rounded : Icons.edit_rounded,
-                        color: isEditing ? const Color(0xFFEF4444) : const Color(0xFF3B82F6),
-                        size: isWeb ? 18 : 20,
-                      ),
-                      onPressed: () => setState(() => isEditing = !isEditing),
-                      tooltip: isEditing ? "Cancel" : "Edit Site",
-                    ),
-                  ),
               ],
             ),
           ),
-          // Card content
           Padding(
             padding: EdgeInsets.all(isWeb ? 16 : 20),
             child: child,
@@ -758,7 +850,6 @@ class GeometricPatternPainter extends CustomPainter {
 
     for (double x = 0; x < size.width; x += spacing) {
       for (double y = 0; y < size.height; y += spacing) {
-        // Draw small rectangles
         canvas.drawRect(
           Rect.fromLTWH(x, y, 30, 30),
           paint,

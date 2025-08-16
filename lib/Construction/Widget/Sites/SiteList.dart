@@ -7,9 +7,7 @@ import '../../Provider/ConstructionSite/Provider.dart';
 import '../../screen/ConstructionSite/Details.dart';
 
 class SiteList extends StatelessWidget {
-  final Future<void> Function(BuildContext, ConstructionSite) onDeleteSite;
-  const SiteList({super.key, required this.onDeleteSite});
-
+  const SiteList({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +74,7 @@ class SiteList extends StatelessWidget {
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: MediaQuery.of(context).size.width > 1400 ? 4 :
           MediaQuery.of(context).size.width > 1000 ? 3 : 2,
-          childAspectRatio: 1.8, // Made cards wider and shorter
+          childAspectRatio: 1.8,
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
         ),
@@ -111,7 +109,7 @@ class SiteList extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Container(
             width: double.infinity,
-            height: 100, // Placeholder height
+            height: 100,
             alignment: Alignment.center,
             child: CircularProgressIndicator(),
           );
@@ -145,8 +143,8 @@ class SiteList extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.all(isWeb ? 12 : 16),
                 child: isWeb
-                    ? _buildWebCardContent(context, site, statusColor, provider)
-                    : _buildMobileCardContent(context, site, statusColor, provider),
+                    ? _buildWebCardContent(context, site, statusColor)
+                    : _buildMobileCardContent(context, site, statusColor),
               ),
             ),
           ),
@@ -154,57 +152,51 @@ class SiteList extends StatelessWidget {
       },
     );
   }
-  Widget _buildWebCardContent(BuildContext context, ConstructionSite site, Color statusColor, SiteProvider provider) {
+
+  Widget _buildWebCardContent(BuildContext context, ConstructionSite site, Color statusColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Compact Header Row
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Smaller icon for web
             Container(
-              width: 40, // Reduced from 56
-              height: 40, // Reduced from 56
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: statusColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12), // Reduced radius
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: statusColor.withOpacity(0.2), width: 1.5),
               ),
               child: Icon(
                 site.isActive == true ? Icons.construction_rounded : Icons.pause_circle_rounded,
                 color: statusColor,
-                size: 20, // Reduced from 24
+                size: 20,
               ),
             ),
             const SizedBox(width: 12),
-
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Site Name - Compact
                   Text(
                     site.name,
                     style: const TextStyle(
-                      fontSize: 14, // Reduced from 16
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF1F2937),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2), // Reduced spacing
-
-                  // Status - Compact
+                  const SizedBox(height: 2),
                   Row(
                     children: [
                       Container(
-                        width: 6, // Reduced from 8
-                        height: 6, // Reduced from 8
+                        width: 6,
+                        height: 6,
                         decoration: BoxDecoration(
                           color: statusColor,
                           shape: BoxShape.circle,
@@ -215,7 +207,7 @@ class SiteList extends StatelessWidget {
                         site.isActive == true ? 'Active' : 'Inactive',
                         style: TextStyle(
                           color: statusColor,
-                          fontSize: 11, // Reduced from 13
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.2,
                         ),
@@ -225,52 +217,25 @@ class SiteList extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Compact Action Menu
-            _buildCompactActionMenu(context, site, provider),
           ],
         ),
-
-        const SizedBox(height: 8), // Reduced spacing
-
-        // Address - Compact
+        const SizedBox(height: 8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.location_on_outlined, size: 12, color: Colors.grey[500]), // Smaller icon
+            Icon(Icons.location_on_outlined, size: 12, color: Colors.grey[500]),
             const SizedBox(width: 4),
             Expanded(
               child: Text(
                 site.adresse,
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]), // Smaller text
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
-
-        // Owner - Compact
-        if (site.owner.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(Icons.business_outlined, size: 12, color: Colors.grey[500]),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  site.owner,
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ],
-
-        const Spacer(), // Push metrics to bottom
-
-        // Bottom Metrics - Compact
+        const Spacer(),
         if (site.budget != null || site.endDate != null) ...[
           const SizedBox(height: 8),
           Row(
@@ -285,7 +250,7 @@ class SiteList extends StatelessWidget {
                 ),
               ],
               if (site.budget != null && site.endDate != null)
-                const SizedBox(width: 6), // Reduced spacing
+                const SizedBox(width: 6),
               if (site.endDate != null)
                 Expanded(
                   child: _buildCompactMetricChip(
@@ -301,16 +266,14 @@ class SiteList extends StatelessWidget {
     );
   }
 
-  Widget _buildMobileCardContent(BuildContext context, ConstructionSite site, Color statusColor, SiteProvider provider) {
+  Widget _buildMobileCardContent(BuildContext context, ConstructionSite site, Color statusColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Header Row: Avatar + Details + Menu
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Site Icon
             Container(
               width: 56,
               height: 56,
@@ -326,14 +289,11 @@ class SiteList extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
-
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Site Name
                   Text(
                     site.name,
                     style: const TextStyle(
@@ -345,8 +305,6 @@ class SiteList extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-
-                  // Status
                   Row(
                     children: [
                       Container(
@@ -370,8 +328,6 @@ class SiteList extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-
-                  // Address
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -387,8 +343,6 @@ class SiteList extends StatelessWidget {
                       ),
                     ],
                   ),
-
-                  // Owner
                   if (site.owner.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Row(
@@ -408,13 +362,8 @@ class SiteList extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Action Menu
-            _buildActionMenu(context, site, provider),
           ],
         ),
-
-        // Bottom Metrics Row
         if (site.budget != null || site.endDate != null) ...[
           const SizedBox(height: 16),
           Row(
@@ -446,25 +395,24 @@ class SiteList extends StatelessWidget {
     );
   }
 
-  // New compact metric chip for web
   Widget _buildCompactMetricChip(IconData icon, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced padding
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6), // Smaller radius
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: color), // Smaller icon
+          Icon(icon, size: 10, color: color),
           const SizedBox(width: 4),
           Expanded(
             child: Text(
               value,
               style: TextStyle(
-                fontSize: 9, // Smaller text
+                fontSize: 9,
                 color: color,
                 fontWeight: FontWeight.w600,
               ),
@@ -473,64 +421,6 @@ class SiteList extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  // New compact action menu for web
-  Widget _buildCompactActionMenu(BuildContext context, ConstructionSite site, SiteProvider provider) {
-    return PopupMenuButton<String>(
-      icon: Container(
-        padding: const EdgeInsets.all(4), // Reduced padding
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Icon(
-          Icons.more_vert_rounded,
-          color: Colors.grey[600],
-          size: 14, // Smaller icon
-        ),
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      elevation: 8,
-      shadowColor: Colors.black.withOpacity(0.1),
-      onSelected: (value) async {
-        switch (value) {
-          case 'edit':
-            await Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => SiteDetailsScreen(site: site),
-            ));
-            provider.fetchSites();
-            break;
-          case 'delete':
-            onDeleteSite(context, site);
-            break;
-        }
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: 'edit',
-          child: Row(
-            children: [
-              Icon(Icons.edit_rounded, size: 16, color: const Color(0xFF3B82F6)),
-              const SizedBox(width: 8),
-              const Text('Edit', style: TextStyle(fontSize: 13)),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              Icon(Icons.delete_rounded, size: 16, color: const Color(0xFFEF4444)),
-              const SizedBox(width: 8),
-              const Text('Delete', style: TextStyle(fontSize: 13)),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -560,63 +450,6 @@ class SiteList extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildActionMenu(BuildContext context, ConstructionSite site, SiteProvider provider) {
-    return PopupMenuButton<String>(
-      icon: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          Icons.more_vert_rounded,
-          color: Colors.grey[600],
-          size: 18,
-        ),
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      elevation: 8,
-      shadowColor: Colors.black.withOpacity(0.1),
-      onSelected: (value) async {
-        switch (value) {
-          case 'edit':
-            await Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => SiteDetailsScreen(site: site),
-            ));
-            provider.fetchSites();
-            break;
-          case 'delete':
-            onDeleteSite(context, site);
-            break;
-        }
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          value: 'edit',
-          child: Row(
-            children: [
-              Icon(Icons.edit_rounded, size: 18, color: const Color(0xFF3B82F6)),
-              const SizedBox(width: 12),
-              const Text('Edit Site'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              Icon(Icons.delete_rounded, size: 18, color: const Color(0xFFEF4444)),
-              const SizedBox(width: 12),
-              const Text('Delete Site'),
-            ],
-          ),
-        ),
-      ],
     );
   }
 

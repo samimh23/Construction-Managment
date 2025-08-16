@@ -3,18 +3,23 @@ import 'package:constructionproject/auth/services/auth/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/constants/app_colors.dart';
 import '../../Widget/Sites/SiteMap.dart';
 import '../../Widget/Sites/SiteList.dart';
-import '../../Model/Constructionsite/ConstructionSiteModel.dart';
 import '../../Provider/ConstructionSite/Provider.dart';
-import '../../Widget/Sites/DeleteSite.dart';
 import '../../Widget/Sites/UpdateSiteDialog.dart';
 import 'package:latlong2/latlong.dart';
 
 class SitesScreen extends StatefulWidget {
   final int selectedTab;
-  const SitesScreen({super.key, required this.selectedTab});
+  final LatLng? mapInitialCenter; // <-- Add this
+  final double? mapInitialZoom;   // <-- Add this
+
+  const SitesScreen({
+    super.key,
+    required this.selectedTab,
+    this.mapInitialCenter,
+    this.mapInitialZoom,
+  });
 
   @override
   State<SitesScreen> createState() => _SitesScreenState();
@@ -22,7 +27,7 @@ class SitesScreen extends StatefulWidget {
 
 class _SitesScreenState extends State<SitesScreen> with AutomaticKeepAliveClientMixin {
   bool _isInitialized = false;
-  String _ownerId = ''; // <-- Store ownerId for use in mutations
+  String _ownerId = '';
 
   @override
   bool get wantKeepAlive => true;
@@ -37,14 +42,13 @@ class _SitesScreenState extends State<SitesScreen> with AutomaticKeepAliveClient
 
   Future<void> _initializeProviders() async {
     if (_isInitialized) return;
-
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final user = await authService.getCurrentUser();
       final ownerId = user?.id ?? '';
 
       if (ownerId.isNotEmpty) {
-        _ownerId = ownerId; // <-- Save for later use
+        _ownerId = ownerId;
         final managerProvider = Provider.of<ManagerLocationProvider>(context, listen: false);
 
         managerProvider.connectAsOwner();
@@ -52,7 +56,6 @@ class _SitesScreenState extends State<SitesScreen> with AutomaticKeepAliveClient
           managerProvider.requestManagersForOwner(ownerId);
         });
 
-        // Also fetch sites for this owner once initialized
         await context.read<SiteProvider>().fetchSitesByOwner(ownerId);
 
         _isInitialized = true;
@@ -67,52 +70,11 @@ class _SitesScreenState extends State<SitesScreen> with AutomaticKeepAliveClient
       context: context,
       builder: (ctx) => AddSiteDialog(
         tappedPoint: tappedPoint,
-        // Fix: pass ownerId to refresh
         onSiteAdded: () => _refreshSites(),
       ),
     );
   }
 
-  Future<void> _deleteSite(BuildContext context, ConstructionSite site) async {
-    final deleted = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => DeleteSiteDialog(site: site),
-    );
-
-    if (deleted == true && mounted) {
-      try {
-        final siteProvider = context.read<SiteProvider>();
-        await siteProvider.deleteSite(site.id ?? "", _ownerId); // <-- Pass ownerId
-        await _refreshSites();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Site deleted successfully',
-                style: TextStyle(color: Colors.white),
-              ),
-              backgroundColor: AppColors.success,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Error deleting site: $e',
-                style: const TextStyle(color: Colors.white),
-              ),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    }
-  }
 
   Future<void> _refreshSites() async {
     try {
@@ -126,18 +88,21 @@ class _SitesScreenState extends State<SitesScreen> with AutomaticKeepAliveClient
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    super.build(context);
 
     return RepaintBoundary(
       child: widget.selectedTab == 0
-          ? SiteMap(onAddSite: _showAddSiteDialog)
-          : SiteList(onDeleteSite: _deleteSite),
+          ? SiteMap(
+        onAddSite: _showAddSiteDialog,
+        initialCenter: widget.mapInitialCenter,
+        initialZoom: widget.mapInitialZoom,
+      )
+          : SiteList(),
     );
   }
 
   @override
   void dispose() {
-    // Clean up any listeners or connections here if needed
     super.dispose();
   }
 }

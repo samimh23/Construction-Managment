@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
@@ -19,19 +20,26 @@ class AddSiteDialog extends StatefulWidget {
 class _AddSiteDialogState extends State<AddSiteDialog> {
   late TextEditingController nameController;
   late TextEditingController adresseController;
-  late TextEditingController geofenceController;
   late TextEditingController budgetController;
+  late TextEditingController coordinatesController;
+  // No geofenceController needed
+  DateTime? startDate;
   DateTime? endDate;
   String currentUserId = '';
   bool isLoading = false;
+
+  static const double defaultGeofenceRadius = 100.0;
 
   @override
   void initState() {
     super.initState();
     nameController = TextEditingController();
     adresseController = TextEditingController();
-    geofenceController = TextEditingController();
     budgetController = TextEditingController();
+    coordinatesController = TextEditingController(
+      text: "${widget.tappedPoint.latitude.toStringAsFixed(15)}, ${widget.tappedPoint.longitude.toStringAsFixed(15)}",
+    );
+    startDate = DateTime.now();
     _loadCurrentUser();
   }
 
@@ -60,8 +68,8 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
   void dispose() {
     nameController.dispose();
     adresseController.dispose();
-    geofenceController.dispose();
     budgetController.dispose();
+    coordinatesController.dispose();
     super.dispose();
   }
 
@@ -205,58 +213,65 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
                       Icons.my_location_rounded,
                       isMobile,
                       [
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: _buildCompactTextField(
+                                controller: coordinatesController,
+                                label: 'Coordinates (lat, lng)',
+                                hint: 'Paste from Google Maps (e.g. 36.776..., 10.088...)',
+                                icon: Icons.place_rounded,
+                                keyboardType: TextInputType.text,
+                                isRequired: true,
+                                isMobile: isMobile,
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.paste),
+                              tooltip: "Paste coordinates",
+                              onPressed: () async {
+                                final data = await Clipboard.getData('text/plain');
+                                final text = data?.text?.trim();
+                                if (text != null && text.contains(',')) {
+                                  setState(() {
+                                    coordinatesController.text = text;
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Geofence Radius Display Only, not editable
                         Container(
-                          padding: EdgeInsets.all(isMobile ? 12 : 14),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: Colors.blue[50],
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: Colors.blue[200]!),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Row(
                             children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.place_rounded, color: Colors.blue[600], size: 16),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Selected Location',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: isMobile ? 12 : 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
+                              Icon(Icons.radio_button_unchecked_rounded, color: Colors.blue[600], size: 18),
+                              const SizedBox(width: 8),
                               Text(
-                                'Lat: ${widget.tappedPoint.latitude.toStringAsFixed(6)}',
+                                'Geofence Radius: ',
                                 style: TextStyle(
-                                  fontSize: isMobile ? 10 : 11,
-                                  color: Colors.grey[700],
-                                  fontFamily: 'monospace',
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: isMobile ? 12 : 13,
                                 ),
                               ),
                               Text(
-                                'Lng: ${widget.tappedPoint.longitude.toStringAsFixed(6)}',
+                                '$defaultGeofenceRadius m',
                                 style: TextStyle(
-                                  fontSize: isMobile ? 10 : 11,
-                                  color: Colors.grey[700],
-                                  fontFamily: 'monospace',
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: isMobile ? 12 : 13,
+                                  color: Colors.blue[700],
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildCompactTextField(
-                          controller: geofenceController,
-                          label: 'Geofence Radius',
-                          hint: 'Optional - e.g., 100',
-                          icon: Icons.radio_button_unchecked_rounded,
-                          keyboardType: TextInputType.number,
-                          suffixText: 'm',
-                          isMobile: isMobile,
                         ),
                       ],
                     ),
@@ -293,11 +308,24 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
                                             fontSize: isMobile ? 11 : 12,
                                           ),
                                         ),
-                                        Text(
-                                          'Today',
-                                          style: TextStyle(
-                                            fontSize: isMobile ? 10 : 11,
-                                            color: Colors.green[600],
+                                        GestureDetector(
+                                          onTap: _selectStartDate,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green[100],
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              startDate != null
+                                                  ? '${startDate!.day}/${startDate!.month}/${startDate!.year}'
+                                                  : 'Select Date',
+                                              style: TextStyle(
+                                                fontSize: isMobile ? 10 : 11,
+                                                color: Colors.green[600],
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -552,6 +580,32 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
     );
   }
 
+  Future<void> _selectStartDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: startDate ?? now,
+      firstDate: DateTime(now.year - 10),
+      lastDate: DateTime(now.year + 10),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() => startDate = picked);
+    }
+  }
+
   Future<void> _selectEndDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -594,23 +648,36 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
       return;
     }
 
+    final coordinates = coordinatesController.text.trim().split(',');
+    if (coordinates.length != 2) {
+      _showError('Please enter valid coordinates in the format: latitude, longitude');
+      return;
+    }
+
+    final double? latitude = double.tryParse(coordinates[0].trim());
+    final double? longitude = double.tryParse(coordinates[1].trim());
+
+    if (latitude == null || longitude == null) {
+      _showError('Please enter valid latitude and longitude.');
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
-      final geofenceRadius = geofenceController.text.isNotEmpty
-          ? double.tryParse(geofenceController.text)
-          : null;
+      // geofenceRadius is always 100
+      final double geofenceRadius = defaultGeofenceRadius;
 
       final newSite = ConstructionSite(
         id: "",
         name: nameController.text.trim(),
         adresse: adresseController.text.trim(),
-        latitude: widget.tappedPoint.latitude,
-        longitude: widget.tappedPoint.longitude,
+        latitude: latitude,
+        longitude: longitude,
         geofenceRadius: geofenceRadius,
-        geofenceCenterLat: widget.tappedPoint.latitude,
-        geofenceCenterLng: widget.tappedPoint.longitude,
-        startDate: DateTime.now(),
+        geofenceCenterLat: latitude,
+        geofenceCenterLng: longitude,
+        startDate: startDate ?? DateTime.now(),
         endDate: endDate,
         budget: budgetController.text.isNotEmpty ? budgetController.text.trim() : null,
         isActive: true,

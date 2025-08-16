@@ -10,7 +10,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
-// --- Add geolocator import for location ---
 import 'package:geolocator/geolocator.dart';
 
 import '../../Core/Constants/app_colors.dart';
@@ -19,22 +18,28 @@ import '../../screen/ConstructionSite/Details.dart';
 
 class SiteMap extends StatefulWidget {
   final Function(BuildContext, LatLng) onAddSite;
-  const SiteMap({super.key, required this.onAddSite});
+  final LatLng? initialCenter;
+  final double? initialZoom;
+  final dynamic focusSite;
+
+  const SiteMap({
+    super.key,
+    required this.onAddSite,
+    this.initialCenter,
+    this.initialZoom,
+    this.focusSite,
+  });
 
   @override
   State<SiteMap> createState() => _SiteMapState();
 }
 
 class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
-  // Cache only what we need
   final Map<String, Marker> _markerCache = {};
   final Map<String, bool> _siteProximityCache = {};
-
-  // Pre-built widgets (created once, reused)
   late final Widget _greenManagerWidget;
   late final Widget _redManagerWidget;
 
-  // Search-related variables
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   List<SearchResult> _searchResults = [];
@@ -42,38 +47,30 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
   bool _showSearchResults = false;
   Timer? _searchDebouncer;
 
-  // Current state - NO provider calls in these
   LatLngBounds? _viewBounds;
   double _zoom = 10.0;
   bool _isMoving = false;
 
-  // Timers
-  Timer? _moveTimer;
-
-  // Snapshot data - updated ONLY when providers actually change
   List<dynamic> _sitesSnapshot = [];
   List<ManagerLocation> _managersSnapshot = [];
   bool _dataChanged = false;
 
-  // Built markers - reused until data actually changes
   List<Marker> _builtMarkers = [];
   List<CircleMarker> _builtCircles = [];
 
-  // Provider references to avoid context access after unmount
   SiteProvider? _siteProviderRef;
   ManagerLocationProvider? _managerProviderRef;
-
   final MapController _mapController = MapController();
 
-  // Mobile performance optimizations
   bool get _isMobile => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
   late final int _maxMarkersForMobile;
   late final Duration _debounceDelayForMobile;
 
-  // --- Add these variables for user location marker ---
   LatLng? _userLocation;
   bool _isGettingLocation = false;
   String? _locationError;
+
+  LatLng? _searchMarkerPosition;
 
   @override
   bool get wantKeepAlive => true;
@@ -84,24 +81,27 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     _initializeMobileOptimizations();
     _preloadWidgets();
     _setupDataListeners();
-    // --- Get current location on init ---
-    _getCurrentLocation();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.focusSite != null) {
+        _goToSite(widget.focusSite);
+      }
+      setState(() {
+        _dataChanged = true;
+      });
+    });
   }
 
   void _initializeMobileOptimizations() {
-    // Reduce marker counts and increase debounce on mobile
     _maxMarkersForMobile = _isMobile ? 25 : 60;
-    _debounceDelayForMobile = _isMobile
-        ? const Duration(milliseconds: 300)
-        : const Duration(milliseconds: 100);
+    _debounceDelayForMobile =
+    _isMobile ? const Duration(milliseconds: 300) : const Duration(milliseconds: 100);
   }
 
   @override
   void dispose() {
-    // Clean up listeners properly
     _siteProviderRef?.removeListener(_onDataChanged);
     _managerProviderRef?.removeListener(_onDataChanged);
-    _moveTimer?.cancel();
     _searchDebouncer?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
@@ -116,7 +116,7 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
   Widget _buildManagerWidget(Color color) {
     return RepaintBoundary(
       child: Container(
-        width: _isMobile ? 24 : 28, // Smaller on mobile
+        width: _isMobile ? 24 : 28,
         height: _isMobile ? 24 : 28,
         decoration: BoxDecoration(
           color: color,
@@ -134,41 +134,34 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
 
   void _setupDataListeners() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return; // Check if still mounted
-
-      // Store provider references
+      if (!mounted) return;
       _siteProviderRef = Provider.of<SiteProvider>(context, listen: false);
       _managerProviderRef = Provider.of<ManagerLocationProvider>(context, listen: false);
 
-      // Take initial snapshot
       _sitesSnapshot = List.from(_siteProviderRef!.sites);
       _managersSnapshot = List.from(_managerProviderRef!.managers);
       _dataChanged = true;
 
-      // Listen for ACTUAL data changes only
       _siteProviderRef!.addListener(_onDataChanged);
       _managerProviderRef!.addListener(_onDataChanged);
+      setState(() {
+        _dataChanged = true;
+      });
     });
   }
 
   void _onDataChanged() {
-    // Check if widget is still mounted before accessing context
     if (!mounted || _siteProviderRef == null || _managerProviderRef == null) {
-      return; // Exit early if unmounted
+      return;
     }
-
-    // Mark data as changed but don't rebuild immediately
     _dataChanged = true;
-
-    // Update snapshots using stored references instead of context
-    _sitesSnapshot = List.from(_siteProviderRef!.sites);
+    // Only show active sites
+    _sitesSnapshot = List.from(_siteProviderRef!.sites.where((site) => site.isActive == true));
     _managersSnapshot = List.from(_managerProviderRef!.managers);
 
-    // Clear caches since data changed
     _markerCache.clear();
     _siteProximityCache.clear();
 
-    // Rebuild only if currently visible and still mounted
     if (mounted && !_isMoving) {
       setState(() {});
     }
@@ -176,6 +169,24 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
 
   void _onSearchChanged(String query) {
     _searchDebouncer?.cancel();
+
+    // Search by coordinates (e.g. "36.834771, 10.177767" or "36.834771 10.177767")
+    final coordMatch = RegExp(r'^\s*(-?\d+(\.\d+)?)[,\s]+(-?\d+(\.\d+)?)\s*$').firstMatch(query);
+    if (coordMatch != null) {
+      final lat = double.tryParse(coordMatch.group(1)!);
+      final lng = double.tryParse(coordMatch.group(3)!);
+      if (lat != null && lng != null) {
+        setState(() {
+          _searchResults.clear();
+          _showSearchResults = false;
+          _isSearching = false;
+          _searchMarkerPosition = LatLng(lat, lng);
+          _dataChanged = true;
+        });
+        _mapController.move(_searchMarkerPosition!, _isMobile ? 15.0 : 16.0);
+        return;
+      }
+    }
 
     if (query.trim().isEmpty) {
       setState(() {
@@ -197,8 +208,6 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
 
   bool _isPointVisible(double lat, double lng) {
     if (_viewBounds == null) return true;
-
-    // Slightly larger buffer on mobile for smoother experience
     final buffer = _isMobile ? 0.01 : 0.005;
     return lat >= _viewBounds!.south - buffer &&
         lat <= _viewBounds!.north + buffer &&
@@ -212,7 +221,6 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
       return _siteProximityCache[cacheKey]!;
     }
 
-    // Fast approximation
     const double meterPerDegree = 111000;
     final latDiff = (manager.latitude - site.latitude).abs() * meterPerDegree;
     final lngDiff = (manager.longitude - site.longitude).abs() * meterPerDegree;
@@ -224,37 +232,26 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     return isNear;
   }
 
-  // Helper method to determine if geofences should be shown at current zoom
-  bool _shouldShowGeofences() {
-    // Show geofences only when zoomed in close (15-20)
-    // This is for detailed view when you need to see precise boundaries
-    return _zoom >= 15.0 && _zoom <= 20.0;
+  bool _shouldShowGeofences(double zoomValue) {
+    return zoomValue >= 15.0 && zoomValue <= 20.0;
   }
 
   void _buildMarkersIfNeeded() {
-    // Only rebuild if data changed OR viewport changed significantly
-    if (!_dataChanged && _builtMarkers.isNotEmpty) {
-      return; // Reuse existing markers
-    }
+    if (!_dataChanged) return;
 
     final markers = <Marker>[];
     final circles = <CircleMarker>[];
 
-    // Mobile-optimized adaptive limits
     final maxMarkers = _isMobile
         ? (_zoom < 10 ? 10 : _zoom < 14 ? 20 : _maxMarkersForMobile)
         : (_zoom < 10 ? 15 : _zoom < 14 ? 30 : 60);
 
     int markerCount = 0;
 
-    // Build site markers first with distance-based filtering on mobile
-    final visibleSites = _isMobile ? _getVisibleSitesSorted() : _sitesSnapshot;
+    final visibleSites = _sitesSnapshot;
 
     for (final site in visibleSites) {
       if (markerCount >= maxMarkers) break;
-      if (!_isPointVisible(site.latitude, site.longitude)) continue;
-
-      // Site marker with mobile-optimized size
       markers.add(Marker(
         point: LatLng(site.latitude, site.longitude),
         width: _isMobile ? 20 : 24,
@@ -284,18 +281,39 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
       markerCount++;
     }
 
-    // Build geofence circles only when zoomed in close (15-20)
-    // Reduce circle complexity on mobile
-    if (_shouldShowGeofences() && (!_isMobile || _zoom >= 16)) {
+    // Add red marker for search result
+    if (_searchMarkerPosition != null) {
+      markers.add(Marker(
+        point: _searchMarkerPosition!,
+        width: _isMobile ? 28 : 32,
+        height: _isMobile ? 28 : 32,
+        child: GestureDetector(
+          onTap: () {
+            // When user taps the searched marker, call addSite with its coordinates
+            widget.onAddSite(context, _searchMarkerPosition!);
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.red,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: _isMobile ? 2 : 2.5),
+            ),
+            child: Icon(
+              Icons.place,
+              color: Colors.white,
+              size: _isMobile ? 16 : 18,
+            ),
+          ),
+        ),
+      ));
+    }
+
+    if (_shouldShowGeofences(_zoom)) {
       final maxCircles = _isMobile ? 10 : 20;
       int circleCount = 0;
-
       for (final site in visibleSites) {
         if (circleCount >= maxCircles) break;
-        if (!_isPointVisible(site.latitude, site.longitude)) continue;
         if (site.geofenceRadius == null || site.geofenceRadius! <= 0) continue;
-
-        // Mobile-optimized opacity and border
         final baseOpacity = _isMobile ? 0.2 : (_zoom > 17 ? 0.4 : 0.3);
         final borderOpacity = _isMobile ? 0.5 : (_zoom > 17 ? 0.8 : 0.7);
         final borderWidth = _isMobile ? 1.5 : (_zoom > 17 ? 3.0 : 2.5);
@@ -307,116 +325,20 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
           borderColor: AppColors.primary.withOpacity(borderOpacity),
           radius: site.geofenceRadius!.toDouble(),
         ));
-
         circleCount++;
       }
-    }
-
-    // Build manager markers with mobile optimization
-    final visibleManagers = _isMobile ? _getVisibleManagersSorted() : _managersSnapshot;
-
-    for (final manager in visibleManagers) {
-      if (markerCount >= maxMarkers) break;
-      if (!_isPointVisible(manager.latitude, manager.longitude)) continue;
-
-      // Find assigned site
-      dynamic assignedSite;
-      try {
-        assignedSite = _sitesSnapshot.firstWhere((s) => s.id == manager.siteId);
-      } catch (e) {
-        assignedSite = null;
-      }
-
-      final isOnSite = assignedSite != null && _isManagerNearSite(manager, assignedSite);
-      final widget = isOnSite ? _greenManagerWidget : _redManagerWidget;
-
-      markers.add(Marker(
-        point: LatLng(manager.latitude, manager.longitude),
-        width: _isMobile ? 24 : 28,
-        height: _isMobile ? 24 : 28,
-        child: GestureDetector(
-          onTap: () => _showManagerInfo(manager),
-          child: widget,
-        ),
-      ));
-      markerCount++;
     }
 
     _builtMarkers = markers;
     _builtCircles = circles;
     _dataChanged = false;
-
-    // Haptic feedback on mobile when markers update
-    if (_isMobile && markerCount > 0) {
-      HapticFeedback.selectionClick();
-    }
-  }
-
-  // Mobile optimization: Sort sites by distance from center
-  List<dynamic> _getVisibleSitesSorted() {
-    if (_viewBounds == null) return _sitesSnapshot;
-
-    final center = LatLng(
-      (_viewBounds!.north + _viewBounds!.south) / 2,
-      (_viewBounds!.east + _viewBounds!.west) / 2,
-    );
-
-    final visibleSites = _sitesSnapshot.where((site) =>
-        _isPointVisible(site.latitude, site.longitude)
-    ).toList();
-
-    // Sort by distance from center (closest first)
-    visibleSites.sort((a, b) {
-      final distA = _calculateDistance(center, LatLng(a.latitude, a.longitude));
-      final distB = _calculateDistance(center, LatLng(b.latitude, b.longitude));
-      return distA.compareTo(distB);
-    });
-
-    return visibleSites;
-  }
-
-  // Mobile optimization: Sort managers by distance from center
-  List<ManagerLocation> _getVisibleManagersSorted() {
-    if (_viewBounds == null) return _managersSnapshot;
-
-    final center = LatLng(
-      (_viewBounds!.north + _viewBounds!.south) / 2,
-      (_viewBounds!.east + _viewBounds!.west) / 2,
-    );
-
-    final visibleManagers = _managersSnapshot.where((manager) =>
-        _isPointVisible(manager.latitude, manager.longitude)
-    ).toList();
-
-    // Sort by distance from center (closest first)
-    visibleManagers.sort((a, b) {
-      final distA = _calculateDistance(center, LatLng(a.latitude, a.longitude));
-      final distB = _calculateDistance(center, LatLng(b.latitude, b.longitude));
-      return distA.compareTo(distB);
-    });
-
-    return visibleManagers;
-  }
-
-  double _calculateDistance(LatLng point1, LatLng point2) {
-    final lat1Rad = point1.latitude * (3.14159 / 180);
-    final lat2Rad = point2.latitude * (3.14159 / 180);
-    final deltaLat = (point2.latitude - point1.latitude) * (3.14159 / 180);
-    final deltaLng = (point2.longitude - point1.longitude) * (3.14159 / 180);
-
-    final a = (deltaLat / 2).abs() * (deltaLat / 2).abs() +
-        (lat1Rad).abs() * (lat2Rad).abs() *
-            (deltaLng / 2).abs() * (deltaLng / 2).abs();
-
-    return 2 * (a.abs());
   }
 
   Future<void> _handleSiteTap(dynamic site) async {
-    // Haptic feedback on mobile
     if (_isMobile) {
       HapticFeedback.lightImpact();
     }
-
+    _goToSite(site);
     try {
       await Navigator.push(
         context,
@@ -427,57 +349,10 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  void _showManagerInfo(ManagerLocation manager) {
-    // Haptic feedback on mobile
-    if (_isMobile) {
-      HapticFeedback.lightImpact();
+  void _goToSite(dynamic site) {
+    if (site.latitude != null && site.longitude != null) {
+      _mapController.move(LatLng(site.latitude, site.longitude), 17.0);
     }
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Manager ${manager.managerId}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Site: ${manager.siteId ?? "Unassigned"}'),
-            Text('Location: ${manager.latitude.toStringAsFixed(4)}, ${manager.longitude.toStringAsFixed(4)}'),
-            const SizedBox(height: 8),
-            // Show if manager is near their assigned site
-            if (manager.siteId != null) ...[
-              Builder(
-                builder: (context) {
-                  try {
-                    final assignedSite = _sitesSnapshot.firstWhere((s) => s.id == manager.siteId);
-                    final isNear = _isManagerNearSite(manager, assignedSite);
-                    return Row(
-                      children: [
-                        Icon(
-                          isNear ? Icons.check_circle : Icons.error,
-                          color: isNear ? Colors.green : Colors.red,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(isNear ? 'On Site' : 'Off Site'),
-                      ],
-                    );
-                  } catch (e) {
-                    return const Text('Site not found');
-                  }
-                },
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _fitToMarkers() {
@@ -487,13 +362,16 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     if (_userLocation != null) {
       allPoints.add(_userLocation!);
     }
+    if (_searchMarkerPosition != null) {
+      allPoints.add(_searchMarkerPosition!);
+    }
 
     if (allPoints.isNotEmpty) {
       try {
         final bounds = LatLngBounds.fromPoints(allPoints);
         _mapController.fitCamera(CameraFit.bounds(
           bounds: bounds,
-          padding: EdgeInsets.all(_isMobile ? 30 : 50), // Smaller padding on mobile
+          padding: EdgeInsets.all(_isMobile ? 30 : 50),
         ));
       } catch (e) {
         debugPrint('Fit bounds error: $e');
@@ -505,13 +383,12 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     if (!mounted) return;
 
     try {
-      // Get current map center for better results
       final center = _mapController.camera.center;
 
       final results = await NominatimSearchService.search(
         query,
         viewbox: center,
-        limit: _isMobile ? 5 : 8, // Fewer results on mobile
+        limit: _isMobile ? 5 : 8,
       );
 
       if (mounted) {
@@ -519,6 +396,13 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
           _searchResults = results;
           _isSearching = false;
           _showSearchResults = results.isNotEmpty;
+          if (results.isNotEmpty) {
+            _searchMarkerPosition = results.first.position;
+            _mapController.move(_searchMarkerPosition!, _isMobile ? 15.0 : 16.0);
+          } else {
+            _searchMarkerPosition = null;
+          }
+          _dataChanged = true;
         });
       }
     } catch (e) {
@@ -526,6 +410,7 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
         setState(() {
           _isSearching = false;
           _showSearchResults = false;
+          _searchMarkerPosition = null;
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -539,11 +424,13 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
   }
 
   void _selectSearchResult(SearchResult result) {
-    _mapController.move(result.position, _isMobile ? 15.0 : 16.0);
     setState(() {
+      _searchMarkerPosition = result.position;
       _showSearchResults = false;
       _searchController.clear();
+      _dataChanged = true;
     });
+    _mapController.move(result.position, _isMobile ? 15.0 : 16.0);
     _searchFocusNode.unfocus();
   }
 
@@ -553,10 +440,11 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
       _searchResults.clear();
       _showSearchResults = false;
       _isSearching = false;
+      _searchMarkerPosition = null;
+      _dataChanged = true;
     });
   }
 
-  // --- Location fetching method ---
   Future<void> _getCurrentLocation() async {
     setState(() {
       _isGettingLocation = true;
@@ -602,7 +490,6 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
         _locationError = null;
       });
 
-      // Optionally move map to user location
       _mapController.move(_userLocation!, _isMobile ? 16.0 : 15.0);
     } catch (e) {
       setState(() {
@@ -612,7 +499,6 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  // --- Add a user marker builder ---
   Marker? _buildUserLocationMarker() {
     if (_userLocation == null) return null;
     return Marker(
@@ -634,17 +520,16 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
   Widget build(BuildContext context) {
     super.build(context);
 
-    // Build markers only when needed
     _buildMarkersIfNeeded();
 
-    // Use cached data - NO provider calls in build
-    LatLng center = const LatLng(36.8065, 10.1815);
+    LatLng center = widget.initialCenter ?? const LatLng(36.8065, 10.1815);
+    double zoom = widget.initialZoom ?? 10;
     if (_sitesSnapshot.isNotEmpty) {
       final first = _sitesSnapshot.first;
       center = LatLng(first.latitude, first.longitude);
+      zoom = 12;
     }
 
-    // --- Add user location marker to the map ---
     final userMarker = _buildUserLocationMarker();
     final allMarkers = List<Marker>.from(_builtMarkers);
     if (userMarker != null) {
@@ -658,69 +543,31 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
             mapController: _mapController,
             options: MapOptions(
               initialCenter: center,
-              initialZoom: 10,
+              initialZoom: zoom,
               minZoom: 5,
               maxZoom: 19,
-
-              // Mobile-optimized map event handling
               onMapEvent: (event) {
-                if (event is MapEventMoveStart) {
-                  if (mounted) {
-                    setState(() {
-                      _isMoving = true;
-                    });
-                  }
-                } else if (event is MapEventMoveEnd) {
-                  _moveTimer?.cancel();
-                  _moveTimer = Timer(_debounceDelayForMobile, () {
-                    if (mounted) {
-                      setState(() {
-                        _isMoving = false;
-                        _viewBounds = event.camera.visibleBounds;
-                        final newZoom = event.camera.zoom;
-                        final oldZoom = _zoom;
+                double newZoom = event.camera.zoom;
+                bool wasVisible = _shouldShowGeofences(_zoom);
+                bool nowVisible = _shouldShowGeofences(newZoom);
 
-                        // Check if we crossed the geofence visibility threshold (15-20)
-                        final wasShowingGeofences = oldZoom >= 15.0 && oldZoom <= 20.0;
-                        final nowShowingGeofences = newZoom >= 15.0 && newZoom <= 20.0;
+                _zoom = newZoom;
+                _viewBounds = event.camera.visibleBounds;
 
-                        // More sensitive threshold on mobile
-                        final zoomThreshold = _isMobile ? 0.3 : 0.5;
-
-                        // Force rebuild when crossing the geofence threshold or significant zoom change
-                        if (wasShowingGeofences != nowShowingGeofences ||
-                            (newZoom - oldZoom).abs() > zoomThreshold) {
-                          _dataChanged = true;
-                        }
-
-                        _zoom = newZoom;
-                      });
-                    }
-                  });
-                } else if (event is MapEventMove) {
-                  // Update bounds and zoom immediately during movement
-                  _viewBounds = event.camera.visibleBounds;
-                  final newZoom = event.camera.zoom;
-
-                  // Check for geofence threshold crossing during movement (15-20)
-                  final wasShowingGeofences = _zoom >= 15.0 && _zoom <= 20.0;
-                  final nowShowingGeofences = newZoom >= 15.0 && newZoom <= 20.0;
-
-                  if (wasShowingGeofences != nowShowingGeofences) {
+                if (wasVisible != nowVisible) {
+                  setState(() {
+                    _builtCircles = [];
                     _dataChanged = true;
-                  }
-
-                  _zoom = newZoom;
+                  });
                 }
+                setState(() {
+                  _dataChanged = true;
+                });
+                if (event is MapEventMoveStart) setState(() => _isMoving = true);
+                if (event is MapEventMoveEnd) setState(() => _isMoving = false);
               },
-
               onTap: (_, point) {
-                // Haptic feedback on mobile
-                if (_isMobile) {
-                  HapticFeedback.selectionClick();
-                }
-
-                // Hide search results when tapping map
+                if (_isMobile) HapticFeedback.selectionClick();
                 if (_showSearchResults) {
                   setState(() {
                     _showSearchResults = false;
@@ -729,36 +576,28 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                 }
                 widget.onAddSite(context, point);
               },
-
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
             ),
             children: [
-              // Mobile-optimized tile layer
               TileLayer(
                 urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
                 subdomains: const ['a', 'b', 'c', 'd'],
                 maxZoom: 19,
-                keepBuffer: _isMobile ? 1 : 2, // Smaller buffer on mobile
+                keepBuffer: _isMobile ? 1 : 2,
                 panBuffer: _isMobile ? 0 : 1,
                 userAgentPackageName: 'com.constructionproject.app',
                 tileProvider: NetworkTileProvider(),
               ),
-
-              // Show circles only when zoomed in close (15-20)
-              if (_shouldShowGeofences())
+              if (_shouldShowGeofences(_zoom))
                 CircleLayer(circles: _builtCircles),
-
-              // Mobile-optimized marker rendering
               if (!_isMoving)
                 MarkerLayer(markers: allMarkers)
               else
                 MarkerLayer(markers: allMarkers.take(_isMobile ? 8 : 15).toList()),
             ],
           ),
-
-          // Mobile-optimized search bar
           Positioned(
             top: _isMobile ? 40 : 50,
             left: _isMobile ? 15 : 20,
@@ -808,8 +647,6 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
               ),
             ),
           ),
-
-          // Mobile-optimized search results
           if (_showSearchResults && _searchResults.isNotEmpty)
             Positioned(
               top: _isMobile ? 90 : 105,
@@ -862,8 +699,6 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                 ),
               ),
             ),
-
-          // Attribution
           Positioned(
             bottom: 0,
             left: 0,
@@ -880,8 +715,6 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
               ],
             ),
           ),
-
-          // Mobile-optimized loading indicator
           if (_isMoving)
             Positioned(
               top: _isMobile ? 100 : 120,
@@ -911,8 +744,6 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                 ),
               ),
             ),
-
-          // Mobile-optimized controls
           Positioned(
             top: _isMobile ? 40 : 50,
             right: _isMobile ? 15 : 20,
@@ -933,11 +764,9 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                 FloatingActionButton.small(
                   heroTag: "site_map_refresh_fab",
                   onPressed: () {
-                    if (_isMobile) {
-                      HapticFeedback.lightImpact();
-                    }
+                    if (_isMobile) HapticFeedback.lightImpact();
                     setState(() {
-                      _dataChanged = true; // Force rebuild to refresh circles
+                      _dataChanged = true;
                     });
                   },
                   tooltip: 'Refresh geofences',
@@ -951,8 +780,6 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
               ],
             ),
           ),
-
-          // --- Add button to get current location ---
           Positioned(
             bottom: _isMobile ? 100 : 120,
             right: _isMobile ? 15 : 20,
@@ -967,8 +794,6 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                   : const Icon(Icons.my_location, color: Colors.white),
             ),
           ),
-
-          // --- Show error if location failed ---
           if (_locationError != null)
             Positioned(
               bottom: _isMobile ? 140 : 160,
@@ -987,8 +812,6 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                 ),
               ),
             ),
-
-          // Mobile-optimized help text
           Positioned(
             bottom: _isMobile ? 30 : 40,
             right: _isMobile ? 15 : 20,
@@ -1002,15 +825,13 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                _shouldShowGeofences()
+                _shouldShowGeofences(_zoom)
                     ? 'Tap to add • Zoom: ${_zoom.toStringAsFixed(1)} • Geofences visible'
                     : 'Tap to add • Zoom: ${_zoom.toStringAsFixed(1)} • Zoom 15+ for geofences',
                 style: TextStyle(fontSize: _isMobile ? 10 : 11),
               ),
             ),
           ),
-
-          // Enhanced debug info (only show on non-mobile in debug mode)
           if (kDebugMode && !_isMobile)
             Positioned(
               bottom: 70,
@@ -1027,7 +848,7 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                       'Zoom: ${_zoom.toStringAsFixed(1)}\n'
                       'Sites w/ radius: ${_sitesSnapshot.where((s) => s.geofenceRadius != null && s.geofenceRadius! > 0).length}\n'
                       'Moving: $_isMoving\n'
-                      'Show circles: ${_shouldShowGeofences()}\n'
+                      'Show circles: ${_shouldShowGeofences(_zoom)}\n'
                       'Mobile: $_isMobile',
                   style: const TextStyle(color: Colors.white, fontSize: 9, height: 1.2),
                 ),
