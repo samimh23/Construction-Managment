@@ -507,7 +507,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
           child: SiteDetailsPeopleCard(
             isEditing: isEditing,
             managerController: managerController,
-            siteId: widget.site.id ?? '',
+            siteId: widget.site.id ,
             managerId: widget.site.manager,
           ),
           isWeb: false,

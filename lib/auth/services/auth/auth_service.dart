@@ -105,15 +105,13 @@ class AuthService {
         ApiConstants.loginEndpoint,
         data: request.toJson(),
       );
+      // Defensive: check for token before parsing
+      if (response.data == null || (response.data['access_token'] ?? response.data['token']) == null) {
+        final message = response.data?['message'] ?? 'Login failed. Please check your credentials.';
+        throw ValidationException(message);
+      }
       final authResponse = AuthResponse.fromJson(response.data);
-      print('Login success. User: ${authResponse.user?.toJson()}');
-      print('Token: ${authResponse.token}');
-      print('RefreshToken: ${authResponse.refreshToken}');
       await _storeAuthData(authResponse);
-      // Print what was saved
-      print('Saved user: ${_sharedPreferences.getString(_userKey)}');
-      print('Saved token: ${_sharedPreferences.getString(_tokenKey)}');
-      print('Saved refresh: ${_sharedPreferences.getString(_refreshTokenKey)}');
       return authResponse;
     } on DioException catch (e) {
       throw _handleDioException(e);

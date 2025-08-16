@@ -2,7 +2,6 @@ import 'package:constructionproject/Worker/Models/worker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../Worker/Provider/worker_provider.dart';
-import '../../Core/Constants/app_colors.dart';
 
 class SiteDetailsPeopleCard extends StatefulWidget {
   final bool isEditing;

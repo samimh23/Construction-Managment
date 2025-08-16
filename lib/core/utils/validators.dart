@@ -72,9 +72,9 @@ class Validators {
       return 'Phone number is required';
     }
 
-    final phoneRegex = RegExp(r'^\+?[\d\s\-\(\)]{10,}$');
-    if (!phoneRegex.hasMatch(value.trim())) {
-      return 'Please enter a valid phone number';
+    final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digitsOnly.length != 8) {
+      return 'Phone number must be exactly 8 digits';
     }
 
     return null;

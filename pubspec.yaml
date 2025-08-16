@@ -47,6 +47,7 @@ dependencies:
   flutter_svg: ^2.0.7
 
   shared_preferences: ^2.5.3
+  connectivity_plus: ^5.0.2
 
   # State Management
   provider: ^6.1.5
@@ -70,6 +71,8 @@ dependencies:
   equatable: ^2.0.5
   json_annotation: ^4.8.1
   image_picker: ^1.1.2
+  dropdown_search: ^5.0.6
+  fl_chart: ^0.68.0
 
 
 dev_dependencies:
@@ -84,8 +87,13 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   json_serializable: ^6.7.1
   build_runner: ^2.4.7
+  flutter_launcher_icons: ^0.13.1
     # Add these for performance testing
   mockito: ^5.4.4
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/workers.png"
   integration_test:
     sdk: flutter
   flutter_driver:

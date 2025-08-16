@@ -10,6 +10,9 @@ import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+// --- Add geolocator import for location ---
+import 'package:geolocator/geolocator.dart';
+
 import '../../Core/Constants/app_colors.dart';
 import '../../Provider/ConstructionSite/Provider.dart';
 import '../../screen/ConstructionSite/Details.dart';
@@ -23,7 +26,6 @@ class SiteMap extends StatefulWidget {
 }
 
 class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
-
   // Cache only what we need
   final Map<String, Marker> _markerCache = {};
   final Map<String, bool> _siteProximityCache = {};
@@ -68,6 +70,11 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
   late final int _maxMarkersForMobile;
   late final Duration _debounceDelayForMobile;
 
+  // --- Add these variables for user location marker ---
+  LatLng? _userLocation;
+  bool _isGettingLocation = false;
+  String? _locationError;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -77,6 +84,8 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     _initializeMobileOptimizations();
     _preloadWidgets();
     _setupDataListeners();
+    // --- Get current location on init ---
+    _getCurrentLocation();
   }
 
   void _initializeMobileOptimizations() {
@@ -475,6 +484,9 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     final allPoints = <LatLng>[];
     allPoints.addAll(_sitesSnapshot.map((s) => LatLng(s.latitude, s.longitude)));
     allPoints.addAll(_managersSnapshot.map((m) => LatLng(m.latitude, m.longitude)));
+    if (_userLocation != null) {
+      allPoints.add(_userLocation!);
+    }
 
     if (allPoints.isNotEmpty) {
       try {
@@ -544,6 +556,80 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     });
   }
 
+  // --- Location fetching method ---
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      _isGettingLocation = true;
+      _locationError = null;
+    });
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          _locationError = 'Location services are disabled.';
+          _isGettingLocation = false;
+        });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            _locationError = 'Location permissions are denied';
+            _isGettingLocation = false;
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          _locationError = 'Location permissions are permanently denied';
+          _isGettingLocation = false;
+        });
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      setState(() {
+        _userLocation = LatLng(position.latitude, position.longitude);
+        _isGettingLocation = false;
+        _locationError = null;
+      });
+
+      // Optionally move map to user location
+      _mapController.move(_userLocation!, _isMobile ? 16.0 : 15.0);
+    } catch (e) {
+      setState(() {
+        _locationError = 'Failed to get location: $e';
+        _isGettingLocation = false;
+      });
+    }
+  }
+
+  // --- Add a user marker builder ---
+  Marker? _buildUserLocationMarker() {
+    if (_userLocation == null) return null;
+    return Marker(
+      point: _userLocation!,
+      width: _isMobile ? 27 : 32,
+      height: _isMobile ? 27 : 32,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.teal,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: _isMobile ? 2 : 2.5),
+        ),
+        child: Icon(Icons.my_location, color: Colors.white, size: _isMobile ? 14 : 16),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -556,6 +642,13 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
     if (_sitesSnapshot.isNotEmpty) {
       final first = _sitesSnapshot.first;
       center = LatLng(first.latitude, first.longitude);
+    }
+
+    // --- Add user location marker to the map ---
+    final userMarker = _buildUserLocationMarker();
+    final allMarkers = List<Marker>.from(_builtMarkers);
+    if (userMarker != null) {
+      allMarkers.add(userMarker);
     }
 
     return RepaintBoundary(
@@ -659,10 +752,9 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
 
               // Mobile-optimized marker rendering
               if (!_isMoving)
-                MarkerLayer(markers: _builtMarkers)
+                MarkerLayer(markers: allMarkers)
               else
-              // Show fewer markers during movement on mobile
-                MarkerLayer(markers: _builtMarkers.take(_isMobile ? 8 : 15).toList()),
+                MarkerLayer(markers: allMarkers.take(_isMobile ? 8 : 15).toList()),
             ],
           ),
 
@@ -860,6 +952,42 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
             ),
           ),
 
+          // --- Add button to get current location ---
+          Positioned(
+            bottom: _isMobile ? 100 : 120,
+            right: _isMobile ? 15 : 20,
+            child: FloatingActionButton.small(
+              heroTag: "site_map_get_location_fab",
+              onPressed: _getCurrentLocation,
+              tooltip: 'Get my location',
+              backgroundColor: Colors.teal,
+              child: _isGettingLocation
+                  ? const CircularProgressIndicator(
+                  color: Colors.white, strokeWidth: 2)
+                  : const Icon(Icons.my_location, color: Colors.white),
+            ),
+          ),
+
+          // --- Show error if location failed ---
+          if (_locationError != null)
+            Positioned(
+              bottom: _isMobile ? 140 : 160,
+              right: _isMobile ? 15 : 20,
+              child: Card(
+                color: Colors.red,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    _locationError!,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
           // Mobile-optimized help text
           Positioned(
             bottom: _isMobile ? 30 : 40,
@@ -894,7 +1022,7 @@ class _SiteMapState extends State<SiteMap> with AutomaticKeepAliveClientMixin {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  'Markers: ${_builtMarkers.length}\n'
+                  'Markers: ${allMarkers.length}\n'
                       'Circles: ${_builtCircles.length}\n'
                       'Zoom: ${_zoom.toStringAsFixed(1)}\n'
                       'Sites w/ radius: ${_sitesSnapshot.where((s) => s.geofenceRadius != null && s.geofenceRadius! > 0).length}\n'

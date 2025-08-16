@@ -1,7 +1,9 @@
 class ApiConstants {
   // Base URLs
-  static const String productionBaseUrl = 'http://192.168.95.19:3000/';
-  static const String localBaseUrl = 'https://dfe337d7-d01d-4231-a2c1-041f7ce4e916-00-eztmonulzysw.riker.replit.dev';
+
+  static const String productionBaseUrl = 'http://192.168.1.251:3000/';
+  static const String localBaseUrl = 'http://192.168.1.125:3000';
+
 
   // Use this to switch between environments
   static const String baseUrl = localBaseUrl; // Change to productionBaseUrl for production
