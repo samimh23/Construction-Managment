@@ -1,7 +1,7 @@
+import 'package:constructionproject/auth/services/auth/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../Core/Constants/app_colors.dart';
 import '../../Model/Constructionsite/ConstructionSiteModel.dart';
 import '../../Provider/ConstructionSite/Provider.dart';
 import '../../screen/ConstructionSite/Details.dart';
@@ -9,6 +9,7 @@ import '../../screen/ConstructionSite/Details.dart';
 class SiteList extends StatelessWidget {
   final Future<void> Function(BuildContext, ConstructionSite) onDeleteSite;
   const SiteList({super.key, required this.onDeleteSite});
+
 
   @override
   Widget build(BuildContext context) {
@@ -102,41 +103,57 @@ class SiteList extends StatelessWidget {
 
   Widget _buildSiteCard(BuildContext context, ConstructionSite site, SiteProvider provider, {required bool isWeb}) {
     final statusColor = site.isActive == true ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+    final authService = Provider.of<AuthService>(context, listen: false);
 
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+    return FutureBuilder(
+      future: authService.getCurrentUser(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            width: double.infinity,
+            height: 100, // Placeholder height
+            alignment: Alignment.center,
+            child: CircularProgressIndicator(),
+          );
+        }
+        final user = snapshot.data;
+        final ownerId = user?.id ?? '';
+
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () async {
-            await Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => SiteDetailsScreen(site: site),
-            ));
-            provider.fetchSites();
-          },
-          child: Padding(
-            padding: EdgeInsets.all(isWeb ? 12 : 16), // Reduced padding for web
-            child: isWeb
-                ? _buildWebCardContent(context, site, statusColor, provider)
-                : _buildMobileCardContent(context, site, statusColor, provider),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () async {
+                await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => SiteDetailsScreen(site: site),
+                ));
+                provider.fetchSitesByOwner(ownerId);
+              },
+              child: Padding(
+                padding: EdgeInsets.all(isWeb ? 12 : 16),
+                child: isWeb
+                    ? _buildWebCardContent(context, site, statusColor, provider)
+                    : _buildMobileCardContent(context, site, statusColor, provider),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
-
   Widget _buildWebCardContent(BuildContext context, ConstructionSite site, Color statusColor, SiteProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

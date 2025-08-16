@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../Core/Constants/app_colors.dart';
 
 class SiteDetailsLocationCard extends StatelessWidget {
   final bool isEditing;

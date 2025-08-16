@@ -617,8 +617,7 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
         owner: currentUserId,
       );
 
-      await context.read<SiteProvider>().addSite(newSite);
-
+      await context.read<SiteProvider>().addSite(newSite, currentUserId);
       if (mounted) {
         widget.onSiteAdded();
         Navigator.of(context).pop();

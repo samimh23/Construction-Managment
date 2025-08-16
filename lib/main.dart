@@ -1,5 +1,7 @@
+import 'package:constructionproject/Dashboard/pages/Dashboard_Page.dart';
 import 'package:constructionproject/Manger/Screens/manager_home_page.dart';
 import 'package:constructionproject/Manger/Service/attendance_service.dart';
+import 'package:constructionproject/Manger/Service/conectivty_service.dart';
 import 'package:constructionproject/Manger/Service/manager_service.dart';
 import 'package:constructionproject/Manger/manager_provider/ManagerLocationProvider.dart';
 import 'package:constructionproject/Manger/manager_provider/atendence_provider.dart';
@@ -19,6 +21,7 @@ import 'package:constructionproject/core/constants/app_colors.dart';
 import 'package:constructionproject/profile/provider/profile_provider.dart';
 import 'package:constructionproject/profile/screens/Profile_page.dart';
 import 'package:constructionproject/profile/service/profile_service.dart';
+// ADD THESE IMPORTS FOR OFFLINE FUNCTIONALITY:
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -27,11 +30,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'Construction/Provider/ConstructionSite/Provider.dart';
 import 'Construction/service/ConstructionSiteService.dart';
 import 'Construction/screen/ConstructionSite/Home.dart';
+// ADD THESE IMPORTS FOR OFFLINE FUNCTIONALITY:
+import 'package:constructionproject/Manger/Service/offline_storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final sharedPreferences = await SharedPreferences.getInstance();
+
+  // REMOVED: ConnectivityService.initialize() - not needed with the new implementation
+
   runApp(MyApp(sharedPreferences: sharedPreferences));
 }
 
@@ -51,6 +59,10 @@ class MyApp extends StatelessWidget {
           )),
         ),
         Provider<SharedPreferences>.value(value: sharedPreferences),
+
+        // ADD: Offline functionality services
+        ChangeNotifierProvider(create: (_) => ConnectivityService()),
+        Provider(create: (_) => OfflineStorageService()),
 
         ProxyProvider2<Dio, SharedPreferences, AuthService>(
           update: (_, dio, sharedPreferences, __) => AuthService(
@@ -76,9 +88,8 @@ class MyApp extends StatelessWidget {
           update: (_, workerService, __) => WorkerProvider(workerService),
         ),
 
-
         ChangeNotifierProvider(
-          create: (_) => SiteProvider(SiteService())..fetchSites(),
+          create: (_) => SiteProvider(SiteService()),
         ),
         ProxyProvider2<Dio, AuthService, ManagerService>(
           update: (_, dio, authService, __) => ManagerService(dio, authService),
@@ -88,12 +99,29 @@ class MyApp extends StatelessWidget {
           update: (_, managerService, __) => ManagerDataProvider(managerService),
         ),
 
-        ProxyProvider<Dio, AttendanceService>(
-          update: (_, dio, __) => AttendanceService(dio),
+        // UPDATED: AttendanceService with offline support
+        ProxyProvider3<Dio, ConnectivityService, OfflineStorageService, AttendanceService>(
+          update: (_, dio, connectivity, offline, __) => AttendanceService(
+            dio,
+            offlineStorage: offline,
+            connectivityService: connectivity,
+          ),
         ),
-        ChangeNotifierProxyProvider<AttendanceService, AttendanceProvider>(
-          create: (context) => AttendanceProvider(context.read<AttendanceService>()),
-          update: (_, service, __) => AttendanceProvider(service),
+
+        // UPDATED: AttendanceProvider with offline functionality
+        ChangeNotifierProxyProvider4<AttendanceService, ConnectivityService, OfflineStorageService, AuthService, AttendanceProvider>(
+          create: (context) => AttendanceProvider(
+            context.read<AttendanceService>(),
+            authService: context.read<AuthService>(), // Pass AuthService!
+            connectivityService: context.read<ConnectivityService>(),
+            offlineStorage: context.read<OfflineStorageService>(),
+          ),
+          update: (_, service, connectivity, offline, authService, provider) => provider ?? AttendanceProvider(
+            service,
+            authService: authService, // Pass AuthService!
+            connectivityService: connectivity,
+            offlineStorage: offline,
+          ),
         ),
 
         // --- Profile providers ---
@@ -148,7 +176,7 @@ class MyApp extends StatelessWidget {
             if (role == 'manager' || role == 'construction_manager') {
               return const ManagerHomeScreen();
             } else {
-              return const HomeScreen();
+              return  HomeScreen();
             }
           },
           '/profile': (context) => const ProfilePage(),
@@ -156,6 +184,8 @@ class MyApp extends StatelessWidget {
           '/forgot-password': (context) => const ForgotPasswordScreen(),
           '/confirm-code': (context) => const ConfirmCodeScreen(),
           '/reset-password': (context) => const ResetPasswordScreen(),
+          '/dash': (context) =>  DashboardPage(),
+
         },
       ),
     );

@@ -1,16 +1,16 @@
 class ApiConstants {
   static const String productionBaseUrl = 'https://your-api-url.com/api';
-  static const String localBaseUrl = 'http://10.101.249.19:3000/';
-  // Switch between environments easily
+  static const String localBaseUrl = 'http://192.168.1.125:3000/';
 
-  static const String baseUrl = localBaseUrl; // Change to productionBaseUrl for production
+  static const String baseUrl = localBaseUrl;
 
-  // Endpoints (must be relative, not full URLs)
   static const String CreateConstructionsite = 'construction-sites';
   static const String GetConstructionsites = 'construction-sites';
-  static const String GetConstructionsiteById = 'construction-sites/'; // +id
-  static const String UpdateConstructionsite = 'construction-sites/'; // +id
-  static const String DeleteConstructionsite = 'construction-sites/'; // +id
+  static const String GetConstructionsiteById = 'construction-sites/';
+  static const String UpdateConstructionsite = 'construction-sites/';
+  static const String DeleteConstructionsite = 'construction-sites/';
+
+  static const String GetConstructionsiteByowner = 'construction-sites/owner/';
 
   // Headers for Dio
   static const Map<String, String> defaultHeaders = {
@@ -18,12 +18,12 @@ class ApiConstants {
     'Accept': 'application/json',
   };
 
-  // Timeouts (converted to Duration in Dio)
+
   static const int connectTimeout = 30000;
   static const int receiveTimeout = 30000;
   static const int sendTimeout = 30000;
 
-  // Status codes
+
   static const int statusOk = 200;
   static const int statusCreated = 201;
   static const int statusNoContent = 204;

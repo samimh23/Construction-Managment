@@ -19,6 +19,7 @@ class SiteProvider extends ChangeNotifier {
   String? get hoveredSiteId => _hoveredSiteId;
   bool get showTooltip => _showTooltip;
 
+  /// Get all sites (not owner-filtered)
   Future<void> fetchSites() async {
     _loading = true;
     notifyListeners();
@@ -30,19 +31,35 @@ class SiteProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> addSite(ConstructionSite site) async {
+  /// Get sites by owner
+  Future<void> fetchSitesByOwner(String ownerId) async {
+    _loading = true;
+    notifyListeners();
+    try {
+
+      _sites = await _service.fetchSitesByOwner(ownerId);
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Add a site, then refresh by owner
+  Future<void> addSite(ConstructionSite site, String ownerId) async {
     await _service.addSite(site);
-    await fetchSites();
+    await fetchSitesByOwner(ownerId);
   }
 
-  Future<void> updateSite(ConstructionSite site) async {
+  /// Update a site, then refresh by owner
+  Future<void> updateSite(ConstructionSite site, String ownerId) async {
     await _service.updateSite(site);
-    await fetchSites();
+    await fetchSitesByOwner(ownerId);
   }
 
-  Future<void> deleteSite(String id) async {
+  /// Delete a site, then refresh by owner
+  Future<void> deleteSite(String id, String ownerId) async {
     await _service.deleteSite(id);
-    await fetchSites();
+    await fetchSitesByOwner(ownerId);
   }
 
   void setZoom(double zoom) {

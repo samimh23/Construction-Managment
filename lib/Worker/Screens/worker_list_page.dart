@@ -1,6 +1,7 @@
 import 'package:constructionproject/Construction/Provider/ConstructionSite/Provider.dart';
 import 'package:constructionproject/Worker/Provider/worker_provider.dart';
 import 'package:dio/dio.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -74,7 +75,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<WorkerProvider>().loadWorkersByOwner();
-      context.read<SiteProvider>().fetchSites();
+
       _animationController.forward();
     });
   }
@@ -100,115 +101,234 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
     return ['All', ...roles];
   }
 
+
+
+
+
   void _showCreateWorkerDialog(BuildContext context) {
     final firstNameController = TextEditingController();
     final lastNameController = TextEditingController();
     final phoneController = TextEditingController();
     final jobTitleController = TextEditingController();
     final dailyWageController = TextEditingController();
-    String? selectedSiteId;
+    final _formKey = GlobalKey<FormState>();
+    bool isSubmitting = false;
+    dynamic selectedSite;
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Create Worker'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: firstNameController,
-                  decoration: const InputDecoration(labelText: 'First Name'),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              actionsPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              title: Row(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: const Icon(Icons.person_add_alt_1_rounded, color: Color(0xFF10B981), size: 28),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Create New Worker',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                    ),
+                  ),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // First Name
+                      TextFormField(
+                        controller: firstNameController,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.person_outline_rounded),
+                          labelText: 'First Name',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        validator: (val) => val == null || val.trim().isEmpty ? 'First name required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      // Last Name
+                      TextFormField(
+                        controller: lastNameController,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.person_outline_rounded),
+                          labelText: 'Last Name',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        validator: (val) => val == null || val.trim().isEmpty ? 'Last name required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      // Phone
+                      TextFormField(
+                        controller: phoneController,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.phone_rounded),
+                          labelText: 'Phone',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        keyboardType: TextInputType.phone,
+                        validator: (val) => val == null || val.trim().isEmpty ? 'Phone required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      // Job Title
+                      TextFormField(
+                        controller: jobTitleController,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.work_outline_rounded),
+                          labelText: 'Job Title',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Daily Wage
+                      TextFormField(
+                        controller: dailyWageController,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.attach_money_rounded),
+                          labelText: 'Daily Wage (TND)',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) return 'Required';
+                          final num = double.tryParse(val);
+                          if (num == null || num <= 0) return 'Enter a valid wage';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      // Site Dropdown with Search
+                      Consumer<SiteProvider>(
+                        builder: (context, siteProvider, _) {
+                          if (siteProvider.loading) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: LinearProgressIndicator(),
+                            );
+                          }
+                          if (siteProvider.sites.isEmpty) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'No sites available.',
+                                    style: TextStyle(color: Colors.grey[700]),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          return DropdownSearch<dynamic>(
+                            popupProps: PopupProps.menu(
+                              showSearchBox: true,
+                              searchFieldProps: TextFieldProps(
+                                decoration: InputDecoration(
+                                  prefixIcon: Icon(Icons.search),
+                                  hintText: "Search site...",
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                              itemBuilder: (context, site, isSelected) {
+                                return ListTile(
+                                  leading: Icon(Icons.location_on_outlined, color: Colors.blue),
+                                  title: Text(site.name), // Only show name
+                                  // subtitle: site.address != null ? Text(site.address) : null, // REMOVED!
+                                );
+                              },
+                              fit: FlexFit.loose,
+                            ),
+                            items: siteProvider.sites,
+                            itemAsString: (site) => site.name,
+                            dropdownDecoratorProps: DropDownDecoratorProps(
+                              dropdownSearchDecoration: InputDecoration(
+                                labelText: 'Select Site',
+                                prefixIcon: Icon(Icons.location_on_outlined),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                            selectedItem: selectedSite,
+                            validator: (site) => site == null ? 'Site required' : null,
+                            onChanged: (site) => setState(() => selectedSite = site),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-                TextField(
-                  controller: lastNameController,
-                  decoration: const InputDecoration(labelText: 'Last Name'),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
-                TextField(
-                  controller: phoneController,
-                  decoration: const InputDecoration(labelText: 'Phone'),
-                  keyboardType: TextInputType.phone,
-                ),
-                TextField(
-                  controller: jobTitleController,
-                  decoration: const InputDecoration(labelText: 'Job Title'),
-                ),
-                TextField(
-                  controller: dailyWageController,
-                  decoration: const InputDecoration(labelText: 'Daily Wage (TND)'),
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                ),
-                Consumer<SiteProvider>(
-                  builder: (context, siteProvider, _) {
-                    if (siteProvider.loading) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: CircularProgressIndicator(),
-                      );
-                    }
-                    if (siteProvider.sites.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Text('No sites available.'),
-                      );
-                    }
-                    return DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(labelText: 'Site'),
-                      value: selectedSiteId,
-                      items: siteProvider.sites.map((site) {
-                        return DropdownMenuItem(
-                          value: site.id,
-                          child: Text(site.name ?? 'No name'),
+                SizedBox(
+                  width: 148,
+                  height: 44,
+                  child: ElevatedButton.icon(
+                    icon: isSubmitting
+                        ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                        : const Icon(Icons.save_rounded),
+                    label: Text(isSubmitting ? 'Saving...' : 'Create'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                      if (!_formKey.currentState!.validate()) return;
+                      setState(() => isSubmitting = true);
+                      try {
+                        await Provider.of<WorkerProvider>(context, listen: false).createWorker(
+                          firstName: firstNameController.text.trim(),
+                          lastName: lastNameController.text.trim(),
+                          phone: phoneController.text.trim(),
+                          jobTitle: jobTitleController.text.trim(),
+                          siteId: selectedSite.id, // Use selectedSite.id
+                          dailyWage: double.parse(dailyWageController.text.trim()),
                         );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedSiteId = value;
-                        });
-                      },
-                    );
-                  },
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Worker created successfully!')),
+                        );
+                        Navigator.pop(context);
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $e')),
+                        );
+                      } finally {
+                        setState(() => isSubmitting = false);
+                      }
+                    },
+                  ),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (selectedSiteId == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please select a site')),
-                  );
-                  return;
-                }
-                double dailyWage = double.tryParse(dailyWageController.text) ?? 0;
-                try {
-                  await Provider.of<WorkerProvider>(context, listen: false).createWorker(
-                    firstName: firstNameController.text,
-                    lastName: lastNameController.text,
-                    phone: phoneController.text,
-                    jobTitle: jobTitleController.text,
-                    siteId: selectedSiteId!,
-                    dailyWage: dailyWage,
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Worker created successfully!')),
-                  );
-                  Navigator.pop(context);
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -445,7 +565,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                                       icon: const Icon(Icons.refresh_rounded, color: Colors.white),
                                       onPressed: () {
                                         context.read<WorkerProvider>().loadWorkersByOwner();
-                                        context.read<SiteProvider>().fetchSites();
+
                                       },
                                     ),
                                   ),

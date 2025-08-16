@@ -59,4 +59,13 @@ class SiteService {
       throw Exception('Failed to delete site: ${response.data}');
     }
   }
+
+  Future<List<ConstructionSite>> fetchSitesByOwner(String ownerId) async {
+    final response = await _dio.get('${ApiConstants.GetConstructionsiteByowner}$ownerId');
+    if (response.statusCode == ApiConstants.statusOk) {
+      final List data = response.data;
+      return data.map((e) => ConstructionSite.fromJson(e)).toList();
+    }
+    throw Exception('Failed to load sites by owner: ${response.data}');
+  }
 }

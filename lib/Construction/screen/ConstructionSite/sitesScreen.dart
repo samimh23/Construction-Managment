@@ -22,6 +22,7 @@ class SitesScreen extends StatefulWidget {
 
 class _SitesScreenState extends State<SitesScreen> with AutomaticKeepAliveClientMixin {
   bool _isInitialized = false;
+  String _ownerId = ''; // <-- Store ownerId for use in mutations
 
   @override
   bool get wantKeepAlive => true;
@@ -43,12 +44,16 @@ class _SitesScreenState extends State<SitesScreen> with AutomaticKeepAliveClient
       final ownerId = user?.id ?? '';
 
       if (ownerId.isNotEmpty) {
+        _ownerId = ownerId; // <-- Save for later use
         final managerProvider = Provider.of<ManagerLocationProvider>(context, listen: false);
 
         managerProvider.connectAsOwner();
         managerProvider.onConnected(() {
           managerProvider.requestManagersForOwner(ownerId);
         });
+
+        // Also fetch sites for this owner once initialized
+        await context.read<SiteProvider>().fetchSitesByOwner(ownerId);
 
         _isInitialized = true;
       }
@@ -62,6 +67,7 @@ class _SitesScreenState extends State<SitesScreen> with AutomaticKeepAliveClient
       context: context,
       builder: (ctx) => AddSiteDialog(
         tappedPoint: tappedPoint,
+        // Fix: pass ownerId to refresh
         onSiteAdded: () => _refreshSites(),
       ),
     );
@@ -76,7 +82,7 @@ class _SitesScreenState extends State<SitesScreen> with AutomaticKeepAliveClient
     if (deleted == true && mounted) {
       try {
         final siteProvider = context.read<SiteProvider>();
-        await siteProvider.deleteSite(site.id ?? "");
+        await siteProvider.deleteSite(site.id ?? "", _ownerId); // <-- Pass ownerId
         await _refreshSites();
 
         if (mounted) {
@@ -110,8 +116,8 @@ class _SitesScreenState extends State<SitesScreen> with AutomaticKeepAliveClient
 
   Future<void> _refreshSites() async {
     try {
-      if (mounted) {
-        await context.read<SiteProvider>().fetchSites();
+      if (mounted && _ownerId.isNotEmpty) {
+        await context.read<SiteProvider>().fetchSitesByOwner(_ownerId);
       }
     } catch (e) {
       debugPrint('Error refreshing sites: $e');

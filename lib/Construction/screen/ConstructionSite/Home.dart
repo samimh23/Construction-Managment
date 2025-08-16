@@ -20,6 +20,7 @@ class NavigationItem {
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -39,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => selectedTab = index);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -327,6 +329,7 @@ class ImprovedAppDrawer extends StatelessWidget {
   }
 
   Widget _buildUserInfo(BuildContext context) {
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
