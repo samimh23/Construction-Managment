@@ -235,7 +235,9 @@ class SiteList extends StatelessWidget {
             ),
           ],
         ),
+
         const Spacer(),
+
         if (site.budget != null || site.endDate != null) ...[
           const SizedBox(height: 8),
           Row(
