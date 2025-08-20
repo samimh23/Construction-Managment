@@ -110,27 +110,35 @@ class WorkerService {
     required String lastName,
     required String phone,
     required String jobTitle,
-    required String siteId,
+    String? siteId, // Optional
     required double dailyWage,
   }) async {
     final token = await authService.getToken();
     if (token == null) throw Exception('No auth token found.');
 
+    final data = {
+      "firstName": firstName,
+      "lastName": lastName,
+      "phone": phone,
+      "jobTitle": jobTitle,
+      "dailyWageTND": dailyWage,
+      // Only add siteId if it's not null and not empty
+      if (siteId != null && siteId.isNotEmpty) "siteId": siteId, // only add if not null
+    };
+
+    // Debug: Show request data
+    print("Request data: $data"); // <-- Debug, check console output!
+
+
     final response = await dio.post(
       '/users/create-worker',
-      data: {
-        "firstName": firstName,
-        "lastName": lastName,
-        "phone": phone,
-        "jobTitle": jobTitle,
-        "siteId": siteId,
-        "dailyWageTND": dailyWage, // Use dailyWageTND to match backend
-      },
+      data: data,
       options: Options(
         headers: {'Authorization': 'Bearer $token'},
       ),
     );
-    // Optionally handle response or errors here
+    print("createWorker: response: ${response.data}");
+    // Optionally handle errors here
   }
 
   Future<void> editWorker({

@@ -1,10 +1,10 @@
 import 'package:constructionproject/auth/services/auth/auth_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
-import '../../Core/Constants/app_colors.dart';
 import '../../Model/Constructionsite/ConstructionSiteModel.dart';
 import '../../Core/Constants/api_constants.dart';
 import '../../Widget/Details/ProjectInfo.dart';
@@ -12,6 +12,8 @@ import '../../Widget/Details/WorkersCard.dart';
 import '../../Widget/Details/dateCard.dart';
 import '../../Widget/Details/header.dart';
 import '../../Widget/Details/locationInfo.dart';
+import '../../Widget/Sites/SiteMap.dart';
+import 'Home.dart';
 
 class SiteDetailsScreen extends StatefulWidget {
   final ConstructionSite site;
@@ -22,11 +24,23 @@ class SiteDetailsScreen extends StatefulWidget {
 }
 
 class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProviderStateMixin {
+  // Dashboard Color Palette (matching your dashboard exactly)
+  static const Color _primaryBlue = Color(0xFF4285F4);
+  static const Color _successGreen = Color(0xFF34A853);
+  static const Color _warningRed = Color(0xFFEA4335);
+  static const Color _warningOrange = Color(0xFFFBBC04);
+  static const Color _lightGray = Color(0xFFF8F9FA);
+  static const Color _borderGray = Color(0xFFE8EAED);
+  static const Color _textGray = Color(0xFF5F6368);
+  static const Color _darkText = Color(0xFF202124);
+  static const Color _cardWhite = Colors.white;
+
   bool isEditing = false;
   late AnimationController _animationController;
+  late AnimationController _buttonAnimationController;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _buttonScaleAnimation;
 
-  // Controllers
   late TextEditingController nameController;
   late TextEditingController adresseController;
   late TextEditingController budgetController;
@@ -34,6 +48,8 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
   late TextEditingController geofenceRadiusController;
   late TextEditingController geofenceLatController;
   late TextEditingController geofenceLngController;
+  late TextEditingController siteLatController;
+  late TextEditingController siteLngController;
   DateTime? startDate;
   DateTime? endDate;
   bool? isActive;
@@ -50,13 +66,21 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _buttonAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+    _buttonScaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _buttonAnimationController, curve: Curves.elasticOut),
     );
     _animationController.forward();
+    _buttonAnimationController.forward();
     _initControllersFromSite(widget.site);
   }
 
@@ -68,9 +92,42 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     geofenceRadiusController = TextEditingController(text: site.geofenceRadius?.toString() ?? "");
     geofenceLatController = TextEditingController(text: site.geofenceCenterLat?.toString() ?? "");
     geofenceLngController = TextEditingController(text: site.geofenceCenterLng?.toString() ?? "");
+    siteLatController = TextEditingController(text: site.latitude?.toString() ?? "");
+    siteLngController = TextEditingController(text: site.longitude?.toString() ?? "");
     startDate = site.startDate;
     endDate = site.endDate;
     isActive = site.isActive;
+  }
+
+  // FIXED: Get proper owner string instead of object
+  String _getOwnerString(dynamic user) {
+    if (user == null) return 'AyariAladine'; // Fallback
+
+    // If it's already a string, return it
+    if (user is String) return user;
+
+    // If it's a user object, extract the right field
+    if (user is Map) {
+      // Try different possible ID fields
+      return user['id']?.toString() ??
+          user['_id']?.toString() ??
+          user['uid']?.toString() ??
+          user['email']?.toString() ??
+          user['username']?.toString() ??
+          'AyariAladine';
+    }
+
+    // If it has an id property
+    try {
+      return user.id?.toString() ??
+          user.uid?.toString() ??
+          user.email?.toString() ??
+          user.username?.toString() ??
+          'AyariAladine';
+    } catch (e) {
+      // Fallback if user object doesn't have expected properties
+      return 'AyariAladine';
+    }
   }
 
   Future<void> _updateSite() async {
@@ -78,19 +135,29 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
       _showSnackBar("Site ID is missing! Cannot update.", isError: true);
       return;
     }
+
     final authService = Provider.of<AuthService>(context, listen: false);
     final currentUser = await authService.getCurrentUser();
     final endpoint = '${ApiConstants.UpdateConstructionsite}${widget.site.id}';
+
+    // FIXED: Get owner as string, not object
+    final ownerString = _getOwnerString(currentUser);
+
+    if (kDebugMode) {
+      print('🔍 DEBUG: Update site - Current user: $currentUser');
+      print('🔍 DEBUG: Update site - Owner string: $ownerString');
+      print('🔍 DEBUG: Update site - Original owner: ${widget.site.owner}');
+    }
 
     final updatedSite = {
       "name": nameController.text,
       "adresse": adresseController.text,
       "Budget": budgetController.text.isNotEmpty ? budgetController.text : null,
-      "owner": currentUser, // Set as current user
+      "owner": ownerString, // ✅ FIXED: Send string, not object
       "manager": managerController.text,
       "GeoLocation": {
-        "longitude": widget.site.longitude.toString(),
-        "Latitude": widget.site.latitude.toString()
+        "longitude": siteLngController.text,
+        "Latitude": siteLatController.text
       },
       "GeoFence": {
         "center": {
@@ -104,12 +171,21 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
       "isActive": isActive,
     };
 
+    if (kDebugMode) {
+      print('🔍 DEBUG: Update payload: $updatedSite');
+    }
+
     try {
       final response = await dio.patch(endpoint, data: updatedSite);
 
       if (response.statusCode == ApiConstants.statusOk ||
           response.statusCode == ApiConstants.statusCreated) {
         final updatedData = response.data;
+
+        if (kDebugMode) {
+          print('✅ DEBUG: Update response: $updatedData');
+        }
+
         setState(() {
           isEditing = false;
           nameController.text = updatedData['name'] ?? nameController.text;
@@ -119,6 +195,8 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
           geofenceRadiusController.text = updatedData['GeoFence']?['radius']?.toString() ?? '';
           geofenceLatController.text = updatedData['GeoFence']?['center']?['Latitude']?.toString() ?? '';
           geofenceLngController.text = updatedData['GeoFence']?['center']?['longitude']?.toString() ?? '';
+          siteLatController.text = updatedData['GeoLocation']?['Latitude']?.toString() ?? siteLatController.text;
+          siteLngController.text = updatedData['GeoLocation']?['longitude']?.toString() ?? siteLngController.text;
           startDate = updatedData['StartDate'] != null ? DateTime.tryParse(updatedData['StartDate']) : null;
           endDate = updatedData['EndDate'] != null ? DateTime.tryParse(updatedData['EndDate']) : null;
           isActive = updatedData['isActive'] ?? isActive;
@@ -128,6 +206,40 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
         _showSnackBar("Failed to update site", isError: true);
       }
     } catch (e) {
+      if (kDebugMode) {
+        print('❌ DEBUG: Update error: $e');
+      }
+      _showSnackBar("Network error occurred: $e", isError: true);
+    }
+  }
+
+  Future<void> _deleteSite() async {
+    if (widget.site.id == null || widget.site.id!.isEmpty) {
+      _showSnackBar("Site ID is missing! Cannot delete.", isError: true);
+      return;
+    }
+    final endpoint = '${ApiConstants.DeleteConstructionsite}${widget.site.id}';
+
+    try {
+      final response = await dio.delete(endpoint);
+
+      if (response.statusCode == ApiConstants.statusOk ||
+          response.statusCode == ApiConstants.statusNoContent) {
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text("Site deleted successfully!"),
+              backgroundColor: _successGreen,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          );
+        }
+      } else {
+        _showSnackBar("Failed to delete site", isError: true);
+      }
+    } catch (e) {
       _showSnackBar("Network error occurred", isError: true);
     }
   }
@@ -135,21 +247,11 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
   void _showSnackBar(String message, {required bool isError}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              isError ? Icons.error_outline : Icons.check_circle_outline,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: isError ? AppColors.error : AppColors.success,
+        content: Text(message),
+        backgroundColor: isError ? _warningRed : _successGreen,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -158,16 +260,371 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     return MediaQuery.of(context).size.width >= 1024;
   }
 
-  String _getStatusText() {
-    if (isActive == true) return 'Active';
-    if (isActive == false) return 'Inactive';
-    return 'Unknown';
+  @override
+  Widget build(BuildContext context) {
+    final isWeb = isWebLayout(context);
+
+    return Scaffold(
+      backgroundColor: _lightGray,
+      appBar: AppBar(
+        backgroundColor: _cardWhite,
+        elevation: 0,
+        title: Text(
+          'Site Details',
+          style: TextStyle(
+            color: _darkText,
+            fontWeight: FontWeight.w500,
+            fontSize: 20,
+          ),
+        ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: _darkText),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: [
+          // Modern action buttons in header (NO DATE DISPLAY)
+          if (isEditing) ...[
+            // Save button
+            Container(
+              margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
+              child: ElevatedButton.icon(
+                onPressed: _updateSite,
+                icon: const Icon(Icons.save, size: 18),
+                label: const Text('Save'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _successGreen,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+            ),
+            // Cancel button
+            Container(
+              margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+              child: TextButton.icon(
+                onPressed: () => setState(() => isEditing = false),
+                icon: const Icon(Icons.close, size: 18),
+                label: const Text('Cancel'),
+                style: TextButton.styleFrom(
+                  foregroundColor: _textGray,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+            ),
+          ] else ...[
+            // Edit button
+            Container(
+              margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
+              child: ElevatedButton.icon(
+                onPressed: () => setState(() => isEditing = true),
+                icon: const Icon(Icons.edit, size: 18),
+                label: const Text('Edit'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryBlue,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+            ),
+            // Delete button
+            Container(
+              margin: const EdgeInsets.only(right: 16, top: 8, bottom: 8),
+              child: IconButton(
+                onPressed: _showDeleteDialog,
+                icon: const Icon(Icons.delete_outline),
+                color: _warningRed,
+                tooltip: 'Delete Site',
+              ),
+            ),
+          ],
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: _borderGray,
+          ),
+        ),
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(isWeb ? 24.0 : 16.0),
+          child: Column(
+            children: [
+              // Header metrics section
+              _buildHeaderMetrics(),
+              const SizedBox(height: 24),
+
+              // Content cards
+              if (isWeb)
+                _buildWebContent(context)
+              else
+                _buildMobileContent(context),
+            ],
+          ),
+        ),
+      ),
+      // Modern floating action button for mobile only
+      floatingActionButton: isWeb ? null : _buildMobileFloatingButton(),
+    );
   }
 
-  Color _getStatusColor() {
-    if (isActive == true) return const Color(0xFF10B981);
-    if (isActive == false) return const Color(0xFFEF4444);
-    return const Color(0xFF6B7280);
+  Widget _buildMobileFloatingButton() {
+    return AnimatedBuilder(
+      animation: _buttonScaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _buttonScaleAnimation.value,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: _primaryBlue.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: FloatingActionButton.extended(
+              onPressed: isEditing ? _updateSite : () => setState(() => isEditing = true),
+              backgroundColor: isEditing ? _successGreen : _primaryBlue,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              icon: Icon(
+                isEditing ? Icons.save : Icons.edit,
+                size: 20,
+              ),
+              label: Text(
+                isEditing ? 'Save Changes' : 'Edit Site',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeaderMetrics() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _cardWhite,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _borderGray),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _primaryBlue,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.domain,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      nameController.text.isNotEmpty ? nameController.text : 'Untitled Site',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500,
+                        color: _darkText,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: isActive == true ? _successGreen : _warningRed,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isActive == true ? 'Active' : 'Inactive',
+                          style: TextStyle(
+                            color: _textGray,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (isEditing)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _warningOrange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _warningOrange.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.edit, color: _warningOrange, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Editing',
+                        style: TextStyle(
+                          color: _warningOrange,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Metrics row (like dashboard cards)
+          _buildMetricsRow(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricsRow() {
+    final progress = _getProjectProgress();
+    final budget = budgetController.text;
+    final status = isActive == true ? 'Active' : 'Inactive';
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMetricCard(
+            icon: Icons.trending_up,
+            title: 'Progress',
+            value: '$progress%',
+            change: progress > 50 ? '+${progress - 50}%' : null,
+            isPositive: progress > 50,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildMetricCard(
+            icon: Icons.account_balance_wallet,
+            title: 'Budget',
+            value: budget.isNotEmpty ? '${(double.tryParse(budget) ?? 0).toStringAsFixed(1)}K' : '0.0K',
+            change: null,
+            isPositive: true,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildMetricCard(
+            icon: Icons.info_outline,
+            title: 'Status',
+            value: status,
+            change: null,
+            isPositive: isActive == true,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    String? change,
+    required bool isPositive,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _cardWhite,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _borderGray),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: isPositive ? _successGreen : _warningRed,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  icon,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+              if (change != null) ...[
+                const Spacer(),
+                Text(
+                  change,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isPositive ? _successGreen : _warningRed,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w500,
+              color: _darkText,
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              color: _textGray,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   int _getProjectProgress() {
@@ -180,265 +637,75 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     return ((elapsed / total) * 100).round();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isWeb = isWebLayout(context);
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: CustomScrollView(
-        slivers: [
-          // Compact SliverAppBar - FIXED HEIGHT
-          SliverAppBar(
-            expandedHeight: isWeb ? 120 : 160,
-            floating: false,
-            pinned: true,
-            elevation: 0,
-            backgroundColor: Colors.transparent,
-            foregroundColor: Colors.white,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF1E3A8A),
-                      Color(0xFF3B82F6),
-                      Color(0xFF06B6D4),
-                    ],
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    // Simple pattern using CustomPaint
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: GeometricPatternPainter(),
-                      ),
-                    ),
-                    // Content that adapts to screen size
-                    Positioned(
-                      bottom: 16, // Reduced bottom padding
-                      left: 20,
-                      right: 20,
-                      child: isWeb ? _buildWebHeaderContent() : _buildMobileHeaderContent(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          // Content that adapts to screen size
-          SliverPadding(
-            padding: EdgeInsets.all(isWeb ? 24.0 : 16.0),
-            sliver: SliverToBoxAdapter(
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: isWeb ? _buildWebContent() : _buildMobileContent(),
-              ),
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: isEditing ? _buildModernFAB() : null,
-    );
-  }
-
-  // Web header content - horizontal layout with only Status and Progress
-  Widget _buildWebHeaderContent() {
-    return Row(
-      children: [
-        // Left side - Title and subtitle
-        Expanded(
-          flex: 3, // More space for title
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: Text(
-                  isEditing ? 'Edit Site' : nameController.text,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24, // ✅ Smaller font size
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(height: 4), // ✅ Reduced spacing
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: Text(
-                  isEditing ? 'Modify construction site details' : 'Construction site overview',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12, // ✅ Smaller font size
-                    fontWeight: FontWeight.w400,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 24), // ✅ Reduced spacing
-        // Right side - Only Status and Progress (removed Budget and Radius)
-        Expanded(
-          flex: 2, // ✅ Reduced flex for smaller stat section
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildWebStatCard('Status', _getStatusText(), Icons.info_rounded),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildWebStatCard('Progress', '${_getProjectProgress()}%', Icons.trending_up_rounded),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Mobile header content - vertical layout with only Status and Progress
-  Widget _buildMobileHeaderContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min, // ✅ Use minimum space
-      children: [
-        FadeTransition(
-          opacity: _fadeAnimation,
-          child: Text(
-            isEditing ? 'Edit Site' : nameController.text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22, // ✅ Reduced font size
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.5,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        const SizedBox(height: 4), // ✅ Reduced spacing
-        FadeTransition(
-          opacity: _fadeAnimation,
-          child: Text(
-            isEditing ? 'Modify construction site details' : 'Construction site overview',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12, // ✅ Smaller font size
-              fontWeight: FontWeight.w400,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        const SizedBox(height: 12), // ✅ Reduced spacing
-        // Only Status and Progress in mobile (removed Budget and Radius)
-        FadeTransition(
-          opacity: _fadeAnimation,
-          child: Row(
-            children: [
-              Expanded(
-                child: _buildMobileStatCard('Status', _getStatusText(), Icons.info_rounded),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildMobileStatCard('Progress', '${_getProjectProgress()}%', Icons.trending_up_rounded),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Web content - two column layout
-  Widget _buildWebContent() {
+  Widget _buildWebContent(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          flex: 6,
+          flex: 2,
           child: Column(
             children: [
-              _buildCard(
-                title: 'Site Information',
-                icon: Icons.location_city_rounded,
-                child: SiteDetailsHeader(
+              _buildDashboardCard(
+                'Site Information',
+                Icons.domain,
+                SiteDetailsHeader(
                   nameController: nameController,
                   isEditing: isEditing,
                   isActive: isActive,
                   onEditToggle: () => setState(() => isEditing = !isEditing),
                   onActiveToggle: (val) => setState(() => isActive = val),
                 ),
-                isWeb: true,
               ),
               const SizedBox(height: 16),
-              _buildCard(
-                title: 'Location & Geofence',
-                icon: Icons.location_on_rounded,
-                child: SiteDetailsLocationCard(
+              _buildDashboardCard(
+                'Location & Geofence',
+                Icons.location_on,
+                SiteDetailsLocationCard(
                   isEditing: isEditing,
                   adresseController: adresseController,
                   geofenceRadiusController: geofenceRadiusController,
-                  geofenceLatController: geofenceLatController,
-                  geofenceLngController: geofenceLngController,
+                  siteLatController: siteLatController,
+                  siteLngController: siteLngController,
+                  onGoToMap: (lat, lng) => _goToMapTab(context),
                 ),
-                isWeb: true,
               ),
               const SizedBox(height: 16),
-              _buildCard(
-                title: 'Project Timeline',
-                icon: Icons.schedule_rounded,
-                child: SiteDetailsDatesCard(
+              _buildDashboardCard(
+                'Project Timeline',
+                Icons.schedule,
+                SiteDetailsDatesCard(
                   isEditing: isEditing,
                   startDate: startDate,
                   endDate: endDate,
                   onStartDateChanged: (date) => setState(() => startDate = date),
                   onEndDateChanged: (date) => setState(() => endDate = date),
                 ),
-                isWeb: true,
               ),
             ],
           ),
         ),
         const SizedBox(width: 24),
         Expanded(
-          flex: 4,
           child: Column(
             children: [
-              _buildCard(
-                title: 'Project Details',
-                icon: Icons.account_balance_wallet_rounded,
-                child: SiteDetailsProjectInfoCard(
+              _buildDashboardCard(
+                'Project Budget',
+                Icons.account_balance_wallet,
+                SiteDetailsProjectInfoCard(
                   isEditing: isEditing,
                   budgetController: budgetController,
                 ),
-                isWeb: true,
               ),
               const SizedBox(height: 16),
-              _buildCard(
-                title: 'Management Team',
-                icon: Icons.supervisor_account_rounded,
-                child: SiteDetailsPeopleCard(
+              _buildDashboardCard(
+                'Management Team',
+                Icons.supervisor_account,
+                SiteDetailsPeopleCard(
                   isEditing: isEditing,
                   managerController: managerController,
                   siteId: widget.site.id ?? '',
                   managerId: widget.site.manager,
                 ),
-                isWeb: true,
               ),
             ],
           ),
@@ -447,253 +714,109 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     );
   }
 
-  // Mobile content - single column layout
-  Widget _buildMobileContent() {
+  Widget _buildMobileContent(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildCard(
-          title: 'Site Information',
-          icon: Icons.location_city_rounded,
-          child: SiteDetailsHeader(
+        _buildDashboardCard(
+          'Site Information',
+          Icons.domain,
+          SiteDetailsHeader(
             nameController: nameController,
             isEditing: isEditing,
             isActive: isActive,
             onEditToggle: () => setState(() => isEditing = !isEditing),
             onActiveToggle: (val) => setState(() => isActive = val),
           ),
-          isWeb: false,
         ),
         const SizedBox(height: 16),
-        _buildCard(
-          title: 'Location & Geofence',
-          icon: Icons.location_on_rounded,
-          child: SiteDetailsLocationCard(
+        _buildDashboardCard(
+          'Location & Geofence',
+          Icons.location_on,
+          SiteDetailsLocationCard(
             isEditing: isEditing,
             adresseController: adresseController,
             geofenceRadiusController: geofenceRadiusController,
-            geofenceLatController: geofenceLatController,
-            geofenceLngController: geofenceLngController,
+            siteLatController: siteLatController,
+            siteLngController: siteLngController,
+            onGoToMap: (lat, lng) => _goToMapTab(context),
           ),
-          isWeb: false,
         ),
         const SizedBox(height: 16),
-        _buildCard(
-          title: 'Project Timeline',
-          icon: Icons.schedule_rounded,
-          child: SiteDetailsDatesCard(
+        _buildDashboardCard(
+          'Project Timeline',
+          Icons.schedule,
+          SiteDetailsDatesCard(
             isEditing: isEditing,
             startDate: startDate,
             endDate: endDate,
             onStartDateChanged: (date) => setState(() => startDate = date),
             onEndDateChanged: (date) => setState(() => endDate = date),
           ),
-          isWeb: false,
         ),
         const SizedBox(height: 16),
-        _buildCard(
-          title: 'Project Details',
-          icon: Icons.account_balance_wallet_rounded,
-          child: SiteDetailsProjectInfoCard(
+        _buildDashboardCard(
+          'Project Budget',
+          Icons.account_balance_wallet,
+          SiteDetailsProjectInfoCard(
             isEditing: isEditing,
             budgetController: budgetController,
           ),
-          isWeb: false,
         ),
         const SizedBox(height: 16),
-        _buildCard(
-          title: 'Management Team',
-          icon: Icons.supervisor_account_rounded,
-          child: SiteDetailsPeopleCard(
+        _buildDashboardCard(
+          'Management Team',
+          Icons.supervisor_account,
+          SiteDetailsPeopleCard(
             isEditing: isEditing,
             managerController: managerController,
-            siteId: widget.site.id ,
+            siteId: widget.site.id,
             managerId: widget.site.manager,
           ),
-          isWeb: false,
         ),
-        const SizedBox(height: 100), // Space for FAB
+        const SizedBox(height: 100), // Extra space for floating button
       ],
     );
   }
 
-  // Web stat card - compact and simplified
-  Widget _buildWebStatCard(String label, String value, IconData icon) {
+  Widget _buildDashboardCard(String title, IconData icon, Widget child) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // ✅ More compact padding
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: _cardWhite,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
-      ),
-      child: Row( // ✅ Changed to Row layout for more compact design
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Colors.white, size: 14), // ✅ Smaller icon
-          const SizedBox(width: 6),
-          Flexible(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12, // ✅ Smaller font
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10, // ✅ Smaller font
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Mobile stat card - compact and simplified
-  Widget _buildMobileStatCard(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), // ✅ More compact padding
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
-      ),
-      child: Row( // ✅ Changed to Row layout for more compact design
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Colors.white, size: 16), // ✅ Smaller icon
-          const SizedBox(width: 6),
-          Flexible(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12, // ✅ Smaller font
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10, // ✅ Smaller font
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Universal card builder that adapts to web/mobile
-  Widget _buildCard({
-    required String title,
-    required IconData icon,
-    required Widget child,
-    required bool isWeb,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(isWeb ? 12 : 16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: _borderGray),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Card header
           Container(
-            padding: EdgeInsets.all(isWeb ? 16 : 20),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(isWeb ? 12 : 16),
-                topRight: Radius.circular(isWeb ? 12 : 16),
+              color: _lightGray,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
               ),
               border: Border(
-                bottom: BorderSide(color: Colors.grey.shade200),
+                bottom: BorderSide(color: _borderGray),
               ),
             ),
             child: Row(
               children: [
-                Container(
-                  padding: EdgeInsets.all(isWeb ? 6 : 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3B82F6).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(isWeb ? 6 : 8),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: const Color(0xFF3B82F6),
-                    size: isWeb ? 18 : 20,
-                  ),
-                ),
+                Icon(icon, color: _textGray, size: 20),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: isWeb ? 14 : 16,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF1F2937),
-                    ),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: _darkText,
                   ),
                 ),
-                // Add edit button only for Site Information card
-                if (title == 'Site Information')
-                  Container(
-                    decoration: BoxDecoration(
-                      color: isEditing
-                          ? const Color(0xFFEF4444).withOpacity(0.1)
-                          : const Color(0xFF3B82F6).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(isWeb ? 6 : 8),
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        isEditing ? Icons.close_rounded : Icons.edit_rounded,
-                        color: isEditing ? const Color(0xFFEF4444) : const Color(0xFF3B82F6),
-                        size: isWeb ? 18 : 20,
-                      ),
-                      onPressed: () => setState(() => isEditing = !isEditing),
-                      tooltip: isEditing ? "Cancel" : "Edit Site",
-                    ),
-                  ),
               ],
             ),
           ),
-          // Card content
           Padding(
-            padding: EdgeInsets.all(isWeb ? 16 : 20),
+            padding: const EdgeInsets.all(16),
             child: child,
           ),
         ],
@@ -701,40 +824,82 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     );
   }
 
-  Widget _buildModernFAB() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        FloatingActionButton.extended(
-          onPressed: _updateSite,
-          backgroundColor: const Color(0xFF10B981),
-          foregroundColor: Colors.white,
-          elevation: 8,
-          icon: const Icon(Icons.save_rounded),
-          label: const Text(
-            'Save Changes',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
+  Future<void> _showDeleteDialog() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _warningRed.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.warning_rounded, color: _warningRed, size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Text('Delete Site'),
+          ],
         ),
-        const SizedBox(height: 16),
-        FloatingActionButton.extended(
-          onPressed: () => setState(() => isEditing = false),
-          backgroundColor: const Color(0xFFEF4444),
-          foregroundColor: Colors.white,
-          elevation: 8,
-          icon: const Icon(Icons.close_rounded),
-          label: const Text(
-            'Cancel',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
+        content: const Text(
+          'Are you sure you want to delete this site? This action cannot be undone and will remove all associated data.',
+          style: TextStyle(height: 1.5),
         ),
-      ],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            style: TextButton.styleFrom(
+              foregroundColor: _textGray,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _warningRed,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+            child: const Text('Delete Site'),
+          ),
+        ],
+      ),
+    );
+    if (confirm ?? false) {
+      await _deleteSite();
+    }
+  }
+
+  void _goToMapTab(BuildContext context) {
+    final double? lat = double.tryParse(siteLatController.text);
+    final double? lng = double.tryParse(siteLngController.text);
+
+    LatLng? initialCenter;
+    if (lat != null && lng != null) {
+      initialCenter = LatLng(lat, lng);
+    } else if (widget.site.latitude != null && widget.site.longitude != null) {
+      initialCenter = LatLng(widget.site.latitude!, widget.site.longitude!);
+    }
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => HomeScreen(
+          initialTabIndex: 2,
+          mapInitialCenter: initialCenter,
+          mapInitialZoom: 17,
+        ),
+      ),
     );
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _buttonAnimationController.dispose();
     nameController.dispose();
     adresseController.dispose();
     budgetController.dispose();
@@ -742,31 +907,8 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     geofenceRadiusController.dispose();
     geofenceLatController.dispose();
     geofenceLngController.dispose();
+    siteLatController.dispose();
+    siteLngController.dispose();
     super.dispose();
   }
-}
-
-// Custom painter for geometric pattern
-class GeometricPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.05)
-      ..style = PaintingStyle.fill;
-
-    const spacing = 60.0;
-
-    for (double x = 0; x < size.width; x += spacing) {
-      for (double y = 0; y < size.height; y += spacing) {
-        // Draw small rectangles
-        canvas.drawRect(
-          Rect.fromLTWH(x, y, 30, 30),
-          paint,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

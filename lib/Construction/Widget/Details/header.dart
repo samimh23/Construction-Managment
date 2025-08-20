@@ -16,107 +16,80 @@ class SiteDetailsHeader extends StatelessWidget {
     this.onActiveToggle,
   });
 
+  // Dashboard colors
+  static const Color _primaryBlue = Color(0xFF4285F4);
+  static const Color _successGreen = Color(0xFF34A853);
+  static const Color _warningRed = Color(0xFFEA4335);
+  static const Color _lightGray = Color(0xFFF8F9FA);
+  static const Color _borderGray = Color(0xFFE8EAED);
+  static const Color _textGray = Color(0xFF5F6368);
+  static const Color _darkText = Color(0xFF202124);
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            _buildSiteIcon(),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (isEditing)
-                    _buildEditableTitle()
-                  else
-                    _buildDisplayTitle(),
-                  const SizedBox(height: 8),
-                  _buildStatusIndicator(),
-                ],
-              ),
-            ),
-            // Removed the action button from here since it's now in the card header
-          ],
-        ),
+        if (isEditing)
+          _buildEditableNameField()
+        else
+          _buildDisplayNameField(),
+
+        const SizedBox(height: 16),
+
+        _buildStatusSection(),
+
         if (isEditing && onActiveToggle != null) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           _buildActiveToggle(),
         ],
       ],
     );
   }
 
-  Widget _buildSiteIcon() {
-    final statusColor = isActive == true ? const Color(0xFF10B981) : const Color(0xFFEF4444);
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: statusColor.withOpacity(0.2), width: 1.5),
-      ),
-      child: Icon(
-        Icons.domain_rounded,
-        color: statusColor,
-        size: 24,
-      ),
-    );
-  }
-
-  Widget _buildEditableTitle() {
+  Widget _buildEditableNameField() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _borderGray),
       ),
       child: TextFormField(
         controller: nameController,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF1F2937),
+        enabled: isEditing,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w400,
+          color: _darkText,
         ),
         decoration: InputDecoration(
-          hintText: "Enter site name",
+          labelText: 'Site Name',
+          labelStyle: TextStyle(color: _textGray, fontSize: 14),
           border: InputBorder.none,
+          contentPadding: const EdgeInsets.all(12),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide(color: _primaryBlue, width: 2),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
     );
   }
 
-  Widget _buildDisplayTitle() {
+  Widget _buildDisplayNameField() {
     return Text(
-      nameController.text,
-      style: const TextStyle(
+      nameController.text.isNotEmpty ? nameController.text : 'Untitled Site',
+      style: TextStyle(
         fontSize: 18,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF1F2937),
+        fontWeight: FontWeight.w400,
+        color: _darkText,
       ),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
     );
   }
 
-  Widget _buildStatusIndicator() {
-    final statusColor = isActive == true ? const Color(0xFF10B981) : const Color(0xFFEF4444);
-    final statusText = isActive == true ? "Active" : "Inactive";
+  Widget _buildStatusSection() {
+    final statusColor = isActive == true ? _successGreen : _warningRed;
+    final statusText = isActive == true ? 'Active' : 'Inactive';
 
     return Row(
       children: [
@@ -128,14 +101,13 @@ class SiteDetailsHeader extends StatelessWidget {
             shape: BoxShape.circle,
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Text(
           statusText,
           style: TextStyle(
-            color: statusColor,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-            letterSpacing: 0.2,
+            color: _textGray,
+            fontWeight: FontWeight.w400,
+            fontSize: 14,
           ),
         ),
       ],
@@ -144,42 +116,34 @@ class SiteDetailsHeader extends StatelessWidget {
 
   Widget _buildActiveToggle() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: _lightGray,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _borderGray),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Icon(Icons.toggle_on, color: Color(0xFF3B82F6), size: 16),
+          Icon(
+            Icons.toggle_on,
+            color: _textGray,
+            size: 20,
           ),
           const SizedBox(width: 12),
-          const Text(
-            "Site Status",
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1F2937),
+          Expanded(
+            child: Text(
+              'Site Status',
+              style: TextStyle(
+                fontWeight: FontWeight.w400,
+                color: _darkText,
+                fontSize: 14,
+              ),
             ),
           ),
-          const Spacer(),
           Switch.adaptive(
             value: isActive ?? true,
-            activeColor: const Color(0xFF10B981),
-            inactiveThumbColor: const Color(0xFFEF4444),
+            activeColor: _successGreen,
+            inactiveThumbColor: _warningRed,
             onChanged: onActiveToggle,
           ),
         ],

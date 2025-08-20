@@ -1,4 +1,5 @@
 import 'package:constructionproject/Manger/manager_provider/atendence_provider.dart';
+import 'package:constructionproject/Construction/Provider/ConstructionSite/Provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -12,7 +13,6 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
   late TabController _tabController;
   late AnimationController _animationController;
   String? selectedSite;
-  List<String> constructionSites = ['Downtown Plaza', 'Riverside Complex', 'Industrial Park', 'Green Valley'];
 
   @override
   void initState() {
@@ -21,10 +21,15 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     _animationController = AnimationController(duration: Duration(milliseconds: 600), vsync: this);
     _animationController.forward();
 
-    // Optionally fetch owner summary here (replace 'OWNER_ID' with your logic)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = Provider.of<AttendanceProvider>(context, listen: false);
-      provider.fetchOwnerDashboardSummary();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final attendanceProvider = Provider.of<AttendanceProvider>(context, listen: false);
+      final siteProvider = Provider.of<SiteProvider>(context, listen: false);
+
+      await attendanceProvider.fetchOwnerDashboardSummary();
+
+      final user = await attendanceProvider.authService.getCurrentUser();
+      final ownerId = user?.id ?? '';
+      await siteProvider.fetchSitesByOwner(ownerId);
     });
   }
 
@@ -40,51 +45,45 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     final screenWidth = MediaQuery.of(context).size.width;
     final isLargeScreen = screenWidth > 1200;
     final isMediumScreen = screenWidth > 800;
-    final provider = Provider.of<AttendanceProvider>(context);
+    final attendanceProvider = Provider.of<AttendanceProvider>(context);
+    final siteProvider = Provider.of<SiteProvider>(context);
 
-    // For KPI and charts (owner summary)
-    final summary = provider.ownerDashboardSummary;
+    final summary = attendanceProvider.ownerDashboardSummary;
     int todayPresent = summary?['today']?['present'] ?? 0;
     int todayAbsent = summary?['today']?['absent'] ?? 0;
     int monthlyPresent = summary?['month']?['present'] ?? 0;
     int monthlyAbsent = summary?['month']?['absent'] ?? 0;
     double dailyPayout = summary?['today']?['totalPayout']?.toDouble() ?? 0.0;
     double monthlyPayout = summary?['month']?['totalPayout']?.toDouble() ?? 0.0;
-    double averageDailyWage = 1;
+    double averageDailyWage = attendanceProvider.averageDailyWage;
 
-    // For site-specific attendance
-    final siteData = provider.siteDailyAttendance;
+    final siteData = attendanceProvider.siteDailyAttendance;
     int presentCount = siteData?['presentCount'] ?? 0;
     int absentCount = siteData?['absentCount'] ?? 0;
     List<dynamic> presentWorkers = siteData?['present'] ?? [];
     List<dynamic> absentWorkers = siteData?['absent'] ?? [];
 
+    final constructionSites = siteProvider.sites;
+
     return Scaffold(
       backgroundColor: Color(0xFFF8FAFC),
-      body: Row(
+      body: Column(
         children: [
-          if (isMediumScreen) _buildSidebar(),
+          _buildTopHeader(),
           Expanded(
-            child: Column(
-              children: [
-                _buildTopHeader(),
-                Expanded(
-                  child: provider.isLoading
-                      ? Center(child: CircularProgressIndicator())
-                      : provider.error != null
-                      ? Center(child: Text(provider.error!))
-                      : SingleChildScrollView(
-                    padding: EdgeInsets.all(isMediumScreen ? 32 : 16),
-                    child: Column(
-                      children: [
-                        _buildKPICards(isLargeScreen, todayPresent, todayAbsent, dailyPayout, averageDailyWage),
-                        SizedBox(height: 32),
-                        _buildMainContent(isLargeScreen, monthlyPresent, monthlyAbsent, averageDailyWage, presentCount, absentCount, presentWorkers, absentWorkers),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+            child: attendanceProvider.isLoading
+                ? Center(child: CircularProgressIndicator())
+                : attendanceProvider.error != null
+                ? Center(child: Text(attendanceProvider.error!))
+                : SingleChildScrollView(
+              padding: EdgeInsets.all(isMediumScreen ? 32 : 16),
+              child: Column(
+                children: [
+                  _buildKPICards(isLargeScreen, todayPresent, todayAbsent, dailyPayout, averageDailyWage),
+                  SizedBox(height: 32),
+                  _buildMainContent(isLargeScreen, monthlyPresent, monthlyAbsent, averageDailyWage, presentCount, absentCount, presentWorkers, absentWorkers, constructionSites),
+                ],
+              ),
             ),
           ),
         ],
@@ -92,7 +91,17 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     );
   }
 
-  Widget _buildMainContent(bool isLargeScreen, int monthlyPresent, int monthlyAbsent, double averageDailyWage, int presentCount, int absentCount, List<dynamic> presentWorkers, List<dynamic> absentWorkers) {
+  Widget _buildMainContent(
+      bool isLargeScreen,
+      int monthlyPresent,
+      int monthlyAbsent,
+      double averageDailyWage,
+      int presentCount,
+      int absentCount,
+      List<dynamic> presentWorkers,
+      List<dynamic> absentWorkers,
+      List constructionSites,
+      ) {
     if (isLargeScreen) {
       return IntrinsicHeight(
         child: Row(
@@ -112,11 +121,12 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                       ],
                     ),
                   ),
-                  SizedBox(height: 24),
-                  SizedBox(
-                    height: 300,
-                    child: _buildTrendsChart(),
-                  ),
+                  // REMOVED WEEKLY TRENDS CHART
+                  // SizedBox(height: 24),
+                  // SizedBox(
+                  //   height: 300,
+                  //   child: _buildTrendsChart(),
+                  // ),
                 ],
               ),
             ),
@@ -125,7 +135,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
               width: 380,
               child: Column(
                 children: [
-                  _buildSiteSelector(),
+                  _buildSiteSelector(constructionSites),
                   SizedBox(height: 24),
                   if (selectedSite != null) ...[
                     _buildSiteQuickStats(presentCount, absentCount),
@@ -156,13 +166,14 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
               ],
             ),
           ),
-          SizedBox(height: 24),
-          SizedBox(
-            height: 300,
-            child: _buildTrendsChart(),
-          ),
+          // REMOVED WEEKLY TRENDS CHART
+          // SizedBox(height: 24),
+          // SizedBox(
+          //   height: 300,
+          //   child: _buildTrendsChart(),
+          // ),
           SizedBox(height: 32),
-          _buildSiteSelector(),
+          _buildSiteSelector(constructionSites),
           SizedBox(height: 24),
           if (selectedSite != null) ...[
             _buildSiteQuickStats(presentCount, absentCount),
@@ -177,180 +188,6 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
         ],
       );
     }
-  }
-
-  Widget _buildSidebar() {
-    return Container(
-      width: 280,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          right: BorderSide(color: Color(0xFFE2E8F0), width: 1),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 10,
-            offset: Offset(2, 0),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: EdgeInsets.all(32),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF3B82F6), Color(0xFF1E40AF)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(Icons.engineering, color: Colors.white, size: 24),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'ConstructPro',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        'Analytics Dashboard',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF64748B),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'NAVIGATION',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF64748B),
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  _buildNavItem(Icons.dashboard_outlined, 'Dashboard', true),
-                  _buildNavItem(Icons.people_outline, 'Workforce', false),
-                  _buildNavItem(Icons.location_city_outlined, 'Projects', false),
-                  _buildNavItem(Icons.analytics_outlined, 'Reports', false),
-                  _buildNavItem(Icons.settings_outlined, 'Settings', false),
-                  SizedBox(height: 32),
-                  Text(
-                    'QUICK ACTIONS',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF64748B),
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  _buildActionButton('Export Report', Icons.download),
-                  SizedBox(height: 8),
-                  _buildActionButton('Add Worker', Icons.person_add),
-                  SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(IconData icon, String label, bool isActive) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: () {},
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: isActive ? Color(0xFFF1F5F9) : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
-              border: isActive ? Border.all(color: Color(0xFFE2E8F0)) : null,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 20,
-                  color: isActive ? Color(0xFF3B82F6) : Color(0xFF64748B),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                      color: isActive ? Color(0xFF1E293B) : Color(0xFF64748B),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton(String label, IconData icon) {
-    return Container(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () {},
-        icon: Icon(icon, size: 16),
-        label: Flexible(
-          child: Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Color(0xFF3B82F6),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          padding: EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-          textStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-        ),
-      ),
-    );
   }
 
   Widget _buildTopHeader() {
@@ -404,7 +241,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                 Icon(Icons.calendar_today, size: 16, color: Color(0xFF64748B)),
                 SizedBox(width: 8),
                 Text(
-                  'August 16, 2025',
+                  getFormattedDate(),
                   style: TextStyle(
                     fontSize: 14,
                     color: Color(0xFF374151),
@@ -418,13 +255,87 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
       ),
     );
   }
+  String getFormattedDate() {
+    final now = DateTime.now();
+    // Example: August 18, 2025
+    final months = [
+      'January','February','March','April','May','June',
+      'July','August','September','October','November','December'
+    ];
+    String month = months[now.month - 1];
+    return '$month ${now.day}, ${now.year}';
+  }
+  Widget _buildKPICards(
+      bool isLargeScreen,
+      int todayPresent,
+      int todayAbsent,
+      double dailyPayout,
+      double averageDailyWage,
+      ) {
+    final attendanceProvider = Provider.of<AttendanceProvider>(context);
 
-  Widget _buildKPICards(bool isLargeScreen, int todayPresent, int todayAbsent, double dailyPayout, double averageDailyWage) {
+    // Previous day's data for trend calculations
+    int prevPresent = attendanceProvider.ownerDashboardSummary?['yesterday']?['present'] ?? 0;
+    int prevAbsent = attendanceProvider.ownerDashboardSummary?['yesterday']?['absent'] ?? 0;
+    double prevPayout = attendanceProvider.ownerDashboardSummary?['yesterday']?['totalPayout']?.toDouble() ?? 0.0;
+
+    // Calculate trends
+    // Today Present Trend
+    double presentDiff = (todayPresent - prevPresent) as double;
+    double presentTrendPercent = prevPresent == 0 ? 0 : (presentDiff / prevPresent) * 100;
+    String todayPresentTrend = (presentTrendPercent >= 0 ? '+' : '') + presentTrendPercent.toStringAsFixed(1) + '%';
+
+    // Today Absent Trend
+    double absentDiff = (todayAbsent - prevAbsent) as double;
+    double absentTrendPercent = prevAbsent == 0 ? 0 : (absentDiff / prevAbsent) * 100;
+    String todayAbsentTrend = (absentTrendPercent >= 0 ? '+' : '') + absentTrendPercent.toStringAsFixed(1) + '%';
+
+    // Daily Payout Trend
+    double payoutDiff = dailyPayout - prevPayout;
+    double payoutTrendPercent = prevPayout == 0 ? 0 : (payoutDiff / prevPayout) * 100;
+    String dailyPayoutTrend = (payoutTrendPercent >= 0 ? '+' : '') + payoutTrendPercent.toStringAsFixed(1) + '%';
+
+    // Efficiency Trend (attendance rate)
+    int prevTotal = prevPresent + prevAbsent;
+    int todayTotal = todayPresent + todayAbsent;
+    double prevEfficiency = prevTotal == 0 ? 0 : (prevPresent / prevTotal) * 100;
+    double todayEfficiency = todayTotal == 0 ? 0 : (todayPresent / todayTotal) * 100;
+    double efficiencyChange = todayEfficiency - prevEfficiency;
+    String efficiencyTrend = (efficiencyChange >= 0 ? '+' : '') + efficiencyChange.toStringAsFixed(1) + '%';
+
     final kpis = [
-      {'title': 'Today Present', 'value': '$todayPresent', 'subtitle': 'workers on-site', 'icon': Icons.people, 'color': Color(0xFF059669), 'trend': '+5.2%'},
-      {'title': 'Today Absent', 'value': '$todayAbsent', 'subtitle': 'workers absent', 'icon': Icons.person_off, 'color': Color(0xFFDC2626), 'trend': '-2.1%'},
-      {'title': 'Daily Payout', 'value': '${(dailyPayout/1000).toStringAsFixed(1)}k', 'subtitle': 'total wages', 'icon': Icons.payments, 'color': Color(0xFF3B82F6), 'trend': '+12.5%'},
-      {'title': 'Efficiency', 'value': '${((todayPresent / ((todayPresent + todayAbsent) == 0 ? 1 : (todayPresent + todayAbsent))) * 100).toInt()}%', 'subtitle': 'attendance rate', 'icon': Icons.trending_up, 'color': Color(0xFF7C3AED), 'trend': '+3.8%'},
+      {
+        'title': 'Today Present',
+        'value': '$todayPresent',
+        'subtitle': 'workers on-site',
+        'icon': Icons.people,
+        'color': Color(0xFF059669),
+        'trend': todayPresentTrend,
+      },
+      {
+        'title': 'Today Absent',
+        'value': '$todayAbsent',
+        'subtitle': 'workers absent',
+        'icon': Icons.person_off,
+        'color': Color(0xFFDC2626),
+        'trend': todayAbsentTrend,
+      },
+      {
+        'title': 'Daily Payout',
+        'value': '${(dailyPayout / 1000).toStringAsFixed(1)}k',
+        'subtitle': 'total wages',
+        'icon': Icons.payments,
+        'color': Color(0xFF3B82F6),
+        'trend': dailyPayoutTrend,
+      },
+      {
+        'title': 'Efficiency',
+        'value': '${todayEfficiency.toInt()}%',
+        'subtitle': 'attendance rate',
+        'icon': Icons.trending_up,
+        'color': Color(0xFF7C3AED),
+        'trend': efficiencyTrend,
+      },
     ];
 
     if (isLargeScreen) {
@@ -703,140 +614,9 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     );
   }
 
-  Widget _buildTrendsChart() {
-    // For demo, static weekly data. You can use provider.ownerDashboardSummary['weeklyTrend'] if available.
-    final weeklyTrend = Provider.of<AttendanceProvider>(context).ownerDashboardSummary?['weeklyTrend'] ??
-        [
-          {'date': 'Mon', 'percent': 85},
-          {'date': 'Tue', 'percent': 88},
-          {'date': 'Wed', 'percent': 82},
-          {'date': 'Thu', 'percent': 90},
-          {'date': 'Fri', 'percent': 87},
-          {'date': 'Sat', 'percent': 85},
-          {'date': 'Sun', 'percent': 89},
-        ];
+  // REMOVED _buildTrendsChart
 
-    return Container(
-      padding: EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Weekly Attendance Trends',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-          Text(
-            'Last 7 days performance',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF64748B),
-            ),
-          ),
-          SizedBox(height: 24),
-          Expanded(
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawHorizontalLine: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 10,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: Color(0xFFE2E8F0),
-                    strokeWidth: 1,
-                  ),
-                ),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 40,
-                      interval: 10,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          '${value.toInt()}%',
-                          style: TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 12,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        final days = weeklyTrend.map((e) => e['date'].toString().substring(0, 3)).toList();
-                        return Padding(
-                          padding: EdgeInsets.only(top: 8),
-                          child: Text(
-                            days[value.toInt() % days.length],
-                            style: TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 12,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                ),
-                borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: [
-                      for (int i = 0; i < weeklyTrend.length; i++)
-                        FlSpot(i.toDouble(), (weeklyTrend[i]['percent'] as num).toDouble())
-                    ],
-                    isCurved: true,
-                    color: Color(0xFF3B82F6),
-                    barWidth: 3,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) =>
-                          FlDotCirclePainter(
-                            radius: 4,
-                            color: Color(0xFF3B82F6),
-                            strokeColor: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                    ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Color(0xFF3B82F6).withOpacity(0.1),
-                    ),
-                  ),
-                ],
-                minY: 70,
-                maxY: 100,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSiteSelector() {
+  Widget _buildSiteSelector(List constructionSites) {
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -861,14 +641,21 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
               fillColor: Color(0xFFF8FAFC),
             ),
             value: selectedSite,
-            items: constructionSites.map((site) => DropdownMenuItem(value: site, child: Text(site, overflow: TextOverflow.ellipsis))).toList(),
-            onChanged: (site) async {
+            items: constructionSites.map<DropdownMenuItem<String>>((site) {
+              final name = site.name ?? '';
+              final id = site.id ?? '';
+              return DropdownMenuItem(
+                value: id,
+                child: Text(name, overflow: TextOverflow.ellipsis),
+              );
+            }).toList(),
+            onChanged: (siteId) async {
               setState(() {
-                selectedSite = site;
+                selectedSite = siteId;
               });
-              if (site != null) {
-                final provider = Provider.of<AttendanceProvider>(context, listen: false);
-                await provider.fetchSiteDailyAttendance(site);
+              if (siteId != null) {
+                final attendanceProvider = Provider.of<AttendanceProvider>(context, listen: false);
+                await attendanceProvider.fetchSiteDailyAttendance(siteId);
                 setState(() {});
               }
             },
@@ -1095,7 +882,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        'Daily Wage: \$${averageDailyWage.toStringAsFixed(0)}',
+                        'Daily Wage: ${worker['dailyWage'].toString()}',
                         style: TextStyle(
                           fontSize: 13,
                           color: Color(0xFF64748B),

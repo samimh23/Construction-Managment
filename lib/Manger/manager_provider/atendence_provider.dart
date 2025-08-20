@@ -15,7 +15,7 @@ class AttendanceProvider extends ChangeNotifier {
   int pendingRequestsCount = 0;
   bool isSyncing = false;
 
-  double averageDailyWage = 75.0; // fallback/default
+  double averageDailyWage =0; // fallback/default
 
   AttendanceProvider(
       this.attendanceService, {
@@ -152,6 +152,10 @@ class AttendanceProvider extends ChangeNotifier {
     clearError();
     try {
       siteDailyAttendance = await attendanceService.getSiteDailyAttendance(siteId: siteId);
+
+      // Log the result
+      debugPrint('siteDailyAttendance: $siteDailyAttendance');
+
       if (siteDailyAttendance != null && siteDailyAttendance!['present'].isNotEmpty) {
         averageDailyWage = siteDailyAttendance!['present'][0]['dailyWage']?.toDouble() ?? averageDailyWage;
       }
