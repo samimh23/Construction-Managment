@@ -1,3 +1,4 @@
+import 'package:constructionproject/Construction/Model/Constructionsite/ConstructionSiteModel.dart';
 import 'package:constructionproject/Construction/Provider/ConstructionSite/Provider.dart';
 import 'package:constructionproject/Worker/Provider/worker_provider.dart';
 import 'package:dio/dio.dart';
@@ -563,7 +564,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: isDesktop ? 1.4 : 1.2,
+        childAspectRatio: isDesktop ? 0.9 : 0.8, // Reduced aspect ratio
       ),
       itemCount: workers.length,
       itemBuilder: (context, index) {
@@ -609,24 +610,24 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
             );
           },
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12), // Reduced padding
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
+                // Header with Worker Code
                 Row(
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 40, // Reduced size
+                      height: 40,
                       decoration: BoxDecoration(
                         color: roleColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: roleColor.withOpacity(0.2), width: 1.5),
                       ),
-                      child: Icon(roleIcon, color: roleColor, size: 20),
+                      child: Icon(roleIcon, color: roleColor, size: 18),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -634,7 +635,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                           Text(
                             '${worker.firstName} ${worker.lastName}',
                             style: const TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF1F2937),
                             ),
@@ -644,8 +645,8 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                           Row(
                             children: [
                               Container(
-                                width: 6,
-                                height: 6,
+                                width: 5,
+                                height: 5,
                                 decoration: BoxDecoration(
                                   color: worker.isActive ? Colors.green : Colors.red,
                                   shape: BoxShape.circle,
@@ -656,7 +657,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                                 worker.isActive ? 'Active' : 'Inactive',
                                 style: TextStyle(
                                   color: worker.isActive ? Colors.green[700] : Colors.red[700],
-                                  fontSize: 11,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -667,40 +668,63 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                // Details
-                if (worker.email != null && worker.email!.isNotEmpty)
-                  _buildDetailRow(Icons.email_outlined, worker.email!),
-                if (worker.phone != null && worker.phone!.isNotEmpty)
-                  _buildDetailRow(Icons.phone_outlined, worker.phone!),
-                if (worker.dailyWage != null)
-                  _buildDetailRow(Icons.attach_money_rounded, 'TND ${worker.dailyWage.toStringAsFixed(2)}'),
-                const Spacer(),
-                // Quick actions
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildQuickActionButton(
-                      Icons.edit_outlined,
-                      'Edit',
-                          () => _showEditWorkerDialog(context, worker),
-                    ),
-                    _buildQuickActionButton(
-                      Icons.link_outlined,
-                      'Assign',
-                          () => _showAssignWorkerDialog(context, worker.id),
-                    ),
-                    _buildQuickActionButton(
-                      Icons.bar_chart_outlined,
-                      'Stats',
-                          () => _showWorkerSummaryDialog(
-                        context,
-                        worker.id,
-                        '${worker.firstName} ${worker.lastName}',
+
+                // Worker Code Badge
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.badge_outlined, size: 10, color: Colors.blue[600]),
+                      const SizedBox(width: 3),
+                      Flexible(
+                        child: Text(
+                          'Code: ${worker.workerCode ?? 'No Code'}',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue[700],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+
+                const SizedBox(height: 8),
+
+                // Assignment Status
+                _buildAssignmentStatus(worker),
+
+                const SizedBox(height: 6),
+
+                // Details - Make this scrollable if needed
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (worker.email != null && worker.email!.isNotEmpty)
+                        _buildDetailRow(Icons.email_outlined, worker.email!),
+                      if (worker.phone != null && worker.phone!.isNotEmpty)
+                        _buildDetailRow(Icons.phone_outlined, worker.phone!),
+                      if (worker.dailyWage != null)
+                        _buildDetailRow(Icons.attach_money_rounded, 'TND ${worker.dailyWage.toStringAsFixed(2)}'),
+                    ],
+                  ),
+                ),
+
+                // Spacer to push action buttons to bottom
+                const Spacer(),
+
+                // Action buttons - Make them more compact
+                _buildCompactActionButtons(worker, context),
               ],
             ),
           ),
@@ -708,7 +732,115 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
       ),
     );
   }
+  Widget _buildCompactActionButtons(dynamic worker, BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Role-specific buttons
+        if (worker.role.toLowerCase() == 'worker') ...[
+          if (worker.email == null || worker.email!.isEmpty)
+            SizedBox(
+              width: double.infinity,
+              height: 32, // Fixed height
+              child: ElevatedButton(
+                child: const Text("Add Credentials", style: TextStyle(fontSize: 10)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                onPressed: () => _addCredentials(context, worker),
+              ),
+            ),
+          if (worker.email != null && worker.email!.isNotEmpty)
+            SizedBox(
+              width: double.infinity,
+              height: 32,
+              child: ElevatedButton(
+                child: const Text("Promote", style: TextStyle(fontSize: 10)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+                onPressed: () => _promoteWorker(context, worker),
+              ),
+            ),
+          const SizedBox(height: 4),
+        ],
+        if (worker.role.toLowerCase() == 'manager') ...[
+          SizedBox(
+            width: double.infinity,
+            height: 32,
+            child: ElevatedButton(
+              child: const Text("Depromote", style: TextStyle(fontSize: 10)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              ),
+              onPressed: () => _showDepromoteManagerDialog(context, worker),
+            ),
+          ),
+          const SizedBox(height: 4),
+        ],
 
+        // Common action buttons - horizontal row
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildCompactActionButton(
+              Icons.edit_outlined,
+              'Edit',
+                  () => _showEditWorkerDialog(context, worker),
+            ),
+            _buildCompactActionButton(
+              Icons.link_outlined,
+              'Assign',
+                  () => _showAssignWorkerDialog(context, worker.id),
+            ),
+            _buildCompactActionButton(
+              Icons.bar_chart_outlined,
+              'Stats',
+                  () => _showWorkerSummaryDialog(
+                context,
+                worker.id,
+                '${worker.firstName} ${worker.lastName}',
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactActionButton(IconData icon, String label, VoidCallback onPressed) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: const Color(0xFF3B82F6)),
+            const SizedBox(height: 1),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 9,
+                color: Color(0xFF3B82F6),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   Widget _buildDetailRow(IconData icon, String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -786,156 +918,228 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
           },
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Avatar
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: roleColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: roleColor.withOpacity(0.2), width: 1.5),
-                  ),
-                  child: Icon(roleIcon, color: roleColor, size: 24),
-                ),
-                const SizedBox(width: 16),
-                // Details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${worker.firstName} ${worker.lastName}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1F2937),
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: roleColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              worker.role.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: roleColor,
-                              ),
-                            ),
-                          ),
-                        ],
+                // Main worker info row
+                Row(
+                  children: [
+                    // Avatar
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: roleColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: roleColor.withOpacity(0.2), width: 1.5),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
+                      child: Icon(roleIcon, color: roleColor, size: 24),
+                    ),
+                    const SizedBox(width: 16),
+                    // Details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: worker.isActive ? Colors.green : Colors.red,
-                              shape: BoxShape.circle,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${worker.firstName} ${worker.lastName}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1F2937),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: roleColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  worker.role.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: roleColor,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            worker.isActive ? 'Active' : 'Inactive',
-                            style: TextStyle(
-                              color: worker.isActive ? Colors.green[700] : Colors.red[700],
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
+
+                          // Worker Code (NEW)
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(Icons.badge_outlined, size: 14, color: Colors.blue[600]),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Code: ${worker.workerCode ?? 'No Code'}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue[700],
+                                ),
+                              ),
+                            ],
                           ),
-                          if (worker.email != null && worker.email!.isNotEmpty) ...[
-                            const SizedBox(width: 16),
-                            Icon(Icons.email_outlined, size: 14, color: Colors.grey[500]),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                worker.email!,
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                overflow: TextOverflow.ellipsis,
+
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: worker.isActive ? Colors.green : Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                worker.isActive ? 'Active' : 'Inactive',
+                                style: TextStyle(
+                                  color: worker.isActive ? Colors.green[700] : Colors.red[700],
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (worker.email != null && worker.email!.isNotEmpty) ...[
+                                const SizedBox(width: 16),
+                                Icon(Icons.email_outlined, size: 14, color: Colors.grey[500]),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    worker.email!,
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          if (worker.dailyWage != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Daily Wage: TND ${worker.dailyWage.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF10B981),
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ],
                       ),
-                      if (worker.dailyWage != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Daily Wage: TND ${worker.dailyWage.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF10B981),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                // Actions
-                PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert_rounded, color: Colors.grey[400]),
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'edit':
-                        _showEditWorkerDialog(context, worker);
-                        break;
-                      case 'assign':
-                        _showAssignWorkerDialog(context, worker.id);
-                        break;
-                      case 'summary':
-                        _showWorkerSummaryDialog(
+
+                // Assignment Status (NEW)
+                const SizedBox(height: 12),
+                _buildAssignmentStatus(worker),
+
+                // Enhanced Action Buttons Section
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      // Role-specific buttons first
+                      if (worker.role.toLowerCase() == 'worker') ...[
+                        if (worker.email == null || worker.email!.isEmpty)
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.mail_outline, size: 16),
+                            label: const Text("Add Credentials"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3B82F6),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: () => _addCredentials(context, worker),
+                          ),
+                        if (worker.email != null && worker.email!.isNotEmpty) ...[
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.upgrade_rounded, size: 16),
+                            label: const Text("Promote to Manager"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            onPressed: () => _promoteWorker(context, worker),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                      ],
+                      if (worker.role.toLowerCase() == 'manager') ...[
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.arrow_downward_rounded, size: 16),
+                          label: const Text("Depromote to Worker"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: () => _showDepromoteManagerDialog(context, worker),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+
+                      // Common action buttons
+                      IconButton(
+                        icon: const Icon(Icons.link, size: 20),
+                        tooltip: "Assign to Site",
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.grey[100],
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () => _showAssignWorkerDialog(context, worker.id),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.edit, size: 20),
+                        tooltip: "Edit Worker",
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.grey[100],
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () => _showEditWorkerDialog(context, worker),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                        tooltip: "Delete Worker",
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.red[50],
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () => _showDeleteWorkerDialog(context, worker),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.bar_chart_rounded, size: 20),
+                        tooltip: "Show Attendance Summary",
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.grey[100],
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: () => _showWorkerSummaryDialog(
                           context,
                           worker.id,
                           '${worker.firstName} ${worker.lastName}',
-                        );
-                        break;
-                      case 'delete':
-                        _showDeleteWorkerDialog(context, worker);
-                        break;
-                      case 'promote':
-                        _promoteWorker(context, worker);
-                        break;
-                      case 'depromote':
-                        _showDepromoteManagerDialog(context, worker);
-                        break;
-                      case 'credentials':
-                        _addCredentials(context, worker);
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) {
-                    List<PopupMenuEntry<String>> items = [
-                      const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit), SizedBox(width: 8), Text('Edit')])),
-                      const PopupMenuItem(value: 'assign', child: Row(children: [Icon(Icons.link), SizedBox(width: 8), Text('Assign to Site')])),
-                      const PopupMenuItem(value: 'summary', child: Row(children: [Icon(Icons.bar_chart), SizedBox(width: 8), Text('View Summary')])),
-                    ];
-
-                    if (worker.role.toLowerCase() == 'worker') {
-                      if (worker.email == null || worker.email!.isEmpty) {
-                        items.add(const PopupMenuItem(value: 'credentials', child: Row(children: [Icon(Icons.mail_outline), SizedBox(width: 8), Text('Add Credentials')])));
-                      } else {
-                        items.add(const PopupMenuItem(value: 'promote', child: Row(children: [Icon(Icons.upgrade), SizedBox(width: 8), Text('Promote to Manager')])));
-                      }
-                    } else if (worker.role.toLowerCase() == 'manager') {
-                      items.add(const PopupMenuItem(value: 'depromote', child: Row(children: [Icon(Icons.arrow_downward), SizedBox(width: 8), Text('Depromote to Worker')])));
-                    }
-
-                    items.add(const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))])));
-
-                    return items;
-                  },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -943,6 +1147,80 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
         ),
       ),
     );
+  }
+
+// NEW: Assignment Status Widget
+  Widget _buildAssignmentStatus(dynamic worker) {
+    // Check if worker is assigned to a site
+    if (worker.assignedSite != null && worker.assignedSite.isNotEmpty) {
+      return Consumer<SiteProvider>(
+        builder: (context, siteProvider, child) {
+          // Find the site by ID
+          ConstructionSite? site;
+          try {
+            site = siteProvider.sites.firstWhere(
+                  (s) => s.id == worker.assignedSite,
+            );
+          } catch (e) {
+            site = null;
+          }
+
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green[200]!),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.location_on, size: 14, color: Colors.green[700]),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    'Assigned to: ${site?.name ?? 'Site ${worker.assignedSite.substring(0, 8)}...'}',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green[700],
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    // Not assigned to any site
+    else {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.orange[50],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.orange[200]!),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.location_off, size: 14, color: Colors.orange[700]),
+            const SizedBox(width: 4),
+            Text(
+              'Not assigned to any site',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.orange[700],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   // Add the missing methods from your original code
@@ -1099,13 +1377,13 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                             itemAsString: (site) => site.name,
                             dropdownDecoratorProps: DropDownDecoratorProps(
                               dropdownSearchDecoration: InputDecoration(
-                                labelText: 'Select Site',
+                                labelText: 'Select Site (optional)', // <-- Update label for clarity
                                 prefixIcon: Icon(Icons.location_on_outlined),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                               ),
                             ),
                             selectedItem: selectedSite,
-                            validator: (site) => site == null ? 'Site required' : null,
+                            validator: (_) => null, // <-- Make not required
                             onChanged: (site) => setState(() => selectedSite = site),
                           );
                         },
@@ -1144,13 +1422,15 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                         : () async {
                       if (!_formKey.currentState!.validate()) return;
                       setState(() => isSubmitting = true);
+                      print("selectedSite: $selectedSite, selectedSite?.id: ${selectedSite?.id}");
+
                       try {
                         await Provider.of<WorkerProvider>(context, listen: false).createWorker(
                           firstName: firstNameController.text.trim(),
                           lastName: lastNameController.text.trim(),
                           phone: phoneController.text.trim(),
                           jobTitle: jobTitleController.text.trim(),
-                          siteId: selectedSite.id,
+                          siteId: selectedSite?.id,
                           dailyWage: double.parse(dailyWageController.text.trim()),
                         );
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -1176,7 +1456,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
   }
 
   void _showAssignWorkerDialog(BuildContext context, String workerId) {
-    String? selectedSiteId;
+    dynamic selectedSite;
     showDialog(
       context: context,
       builder: (context) {
@@ -1187,19 +1467,40 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
               if (siteProvider.loading) {
                 return const CircularProgressIndicator();
               }
-              return DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Site'),
-                value: selectedSiteId,
-                items: siteProvider.sites.map((site) {
-                  return DropdownMenuItem(
-                    value: site.id,
-                    child: Text(site.name ?? 'No name'),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    selectedSiteId = value;
-                  });
+              if (siteProvider.sites.isEmpty) {
+                return const Text("No sites available");
+              }
+              return DropdownSearch<dynamic>(
+                popupProps: PopupProps.menu(
+                  showSearchBox: true,
+                  searchFieldProps: TextFieldProps(
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(Icons.search),
+                      hintText: "Search site...",
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  itemBuilder: (context, site, isSelected) {
+                    return ListTile(
+                      leading: Icon(Icons.location_on_outlined, color: Colors.blue),
+                      title: Text(site.name),
+                    );
+                  },
+                  fit: FlexFit.loose,
+                ),
+                items: siteProvider.sites,
+                itemAsString: (site) => site.name,
+                dropdownDecoratorProps: DropDownDecoratorProps(
+                  dropdownSearchDecoration: InputDecoration(
+                    labelText: 'Select Site',
+                    prefixIcon: Icon(Icons.location_on_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                selectedItem: selectedSite,
+                validator: (site) => site == null ? 'Site required' : null,
+                onChanged: (site) {
+                  selectedSite = site;
                 },
               );
             },
@@ -1211,7 +1512,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
             ),
             ElevatedButton(
               onPressed: () async {
-                if (selectedSiteId == null) {
+                if (selectedSite == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Please select a site')),
                   );
@@ -1219,7 +1520,7 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
                 }
                 try {
                   await Provider.of<WorkerProvider>(context, listen: false)
-                      .assignWorkerToSite(workerId, selectedSiteId!);
+                      .assignWorkerToSite(workerId, selectedSite.id);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Worker assigned to site!')),
                   );
@@ -1241,6 +1542,9 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
     );
   }
 
+
+// Replace only the _showWorkerSummaryDialog with enhanced modern UI
+
   void _showWorkerSummaryDialog(BuildContext context, String workerId, String workerName) async {
     final provider = Provider.of<WorkerProvider>(context, listen: false);
     final now = DateTime.now();
@@ -1254,66 +1558,268 @@ class _WorkerListPageState extends State<WorkerListPage> with TickerProviderStat
     showDialog(
       context: context,
       builder: (context) {
-        return Consumer<WorkerProvider>(
-          builder: (context, provider, _) {
-            return AlertDialog(
-              title: Text('Attendance Summary: $workerName'),
-              content: provider.isSummaryLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : provider.summaryError != null
-                  ? Text('Error: ${provider.summaryError}')
-                  : provider.dailySummary.isEmpty
-                  ? const Text('No attendance records found.')
-                  : SizedBox(
-                width: 300,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Date         |   Hours', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    ...provider.dailySummary.map((summary) => Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(summary.date),
-                        Text('${summary.totalHours.toStringAsFixed(2)} h'),
+        final themeColor = const Color(0xFF3B82F6);
+        final accentColor = const Color(0xFF10B981);
+        final background = const Color(0xFFF8FAFC);
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: background,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 420),
+            padding: const EdgeInsets.only(top: 0, bottom: 0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFF3B82F6),
+                        Color(0xFF06B6D4),
                       ],
-                    )),
-                    const SizedBox(height: 16),
-                    if (provider.isMonthlySalaryLoading)
-                      const CircularProgressIndicator()
-                    else if (provider.monthlySalaryError != null)
-                      Text('Monthly Salary Error: ${provider.monthlySalaryError}', style: TextStyle(color: Colors.red))
-                    else if (provider.monthlySalary != null)
-                        Column(
-                          children: [
-                            const Divider(),
-                            Text(
-                              'Monthly Salary (${provider.monthlySalary!.year}-${provider.monthlySalary!.month.toString().padLeft(2, '0')}):',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: accentColor.withOpacity(0.16),
+                            child: const Icon(Icons.bar_chart_rounded, color: Color(0xFF10B981)),
+                            radius: 18,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              workerName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.5,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4),
-                            Text('Total Hours: ${provider.monthlySalary!.totalHours.toStringAsFixed(2)}'),
-                            Text('Full Days: ${provider.monthlySalary!.fullDays.toStringAsFixed(2)}'),
-                            Text('Daily Wage: \$${provider.monthlySalary!.dailyWage.toStringAsFixed(2)}'),
-                            Text(
-                              'Salary: \$${provider.monthlySalary!.salary.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Attendance Summary',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  child: provider.isSummaryLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : provider.summaryError != null
+                      ? Center(
+                    child: Text(
+                      'Error: ${provider.summaryError}',
+                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
+                    ),
+                  )
+                      : Column(
+                    children: [
+                      // --- Summary Cards ---
+                      if (provider.monthlySalary != null)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _statCard('Days', '${provider.monthlySalary!.fullDays.toStringAsFixed(0)}', Icons.calendar_today_rounded, Colors.amber),
+                            _statCard('Hours', '${provider.monthlySalary!.totalHours.toStringAsFixed(1)} h', Icons.schedule_rounded, themeColor),
+                            _statCard('Salary', 'TND ${provider.monthlySalary!.salary.toStringAsFixed(2)}', Icons.monetization_on_rounded, accentColor),
+                          ],
+                        ),
+                      const SizedBox(height: 16),
+                      // --- Attendance List ---
+                      provider.dailySummary.isEmpty
+                          ? Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.event_busy_rounded, color: Colors.grey[400], size: 38),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No attendance records found.',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      )
+                          : Container(
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: provider.dailySummary.length,
+                          separatorBuilder: (_, __) => const Divider(height: 8),
+                          itemBuilder: (context, idx) {
+                            final summary = provider.dailySummary[idx];
+                            return Row(
+                              children: [
+                                Icon(Icons.calendar_today_rounded, size: 18, color: themeColor.withOpacity(0.8)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    summary.date,
+                                    style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: accentColor.withOpacity(0.13),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '${summary.totalHours.toStringAsFixed(2)} h',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: accentColor,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      // --- Monthly Salary Section ---
+                      provider.isMonthlySalaryLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : provider.monthlySalaryError != null
+                          ? Text(
+                        'Monthly Salary Error: ${provider.monthlySalaryError}',
+                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w500),
+                      )
+                          : provider.monthlySalary != null
+                          ? Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(top: 8),
+                        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: accentColor.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: accentColor.withOpacity(0.18)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.monetization_on_rounded, color: Color(0xFF10B981)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Monthly Salary',
+                                  style: TextStyle(
+                                    color: accentColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  '${provider.monthlySalary!.year}-${provider.monthlySalary!.month.toString().padLeft(2, '0')}',
+                                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Total Salary',
+                                  style: TextStyle(
+                                    color: themeColor,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  'TND ${provider.monthlySalary!.salary.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    color: accentColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 22,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                  ],
+                      )
+                          : const SizedBox(),
+                    ],
+                  ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
+                // --- Close Button ---
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 18, bottom: 14),
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.close_rounded),
+                      label: const Text('Close'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: themeColor,
+                        textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
                 ),
               ],
-            );
-          },
+            ),
+          ),
         );
       },
+    );
+  }
+
+  Widget _statCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      width: 110,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 3),
+          Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
+          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12)),
+        ],
+      ),
     );
   }
 

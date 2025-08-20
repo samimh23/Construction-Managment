@@ -11,6 +11,13 @@ class SiteDetailsProjectInfoCard extends StatelessWidget {
     required this.budgetController,
   });
 
+  // Dashboard colors
+  static const Color _primaryBlue = Color(0xFF4285F4);
+  static const Color _lightGray = Color(0xFFF8F9FA);
+  static const Color _borderGray = Color(0xFFE8EAED);
+  static const Color _textGray = Color(0xFF5F6368);
+  static const Color _darkText = Color(0xFF202124);
+
   String _formatCurrency(String value) {
     if (value.isEmpty) return "No budget set";
     final number = double.tryParse(value);
@@ -23,12 +30,12 @@ class SiteDetailsProjectInfoCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Total Budget",
           style: TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF6B7280),
+            fontWeight: FontWeight.w500,
+            color: _textGray,
           ),
         ),
         const SizedBox(height: 8),
@@ -44,28 +51,26 @@ class SiteDetailsProjectInfoCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _borderGray),
       ),
       child: TextFormField(
         controller: budgetController,
         keyboardType: TextInputType.number,
+        style: TextStyle(
+          color: _darkText,
+          fontWeight: FontWeight.w400,
+          fontSize: 14,
+        ),
         decoration: InputDecoration(
-          hintText: "Enter budget amount",
-          prefixIcon: const Icon(Icons.attach_money_rounded, color: Color(0xFF10B981), size: 20),
+          labelText: 'Budget Amount (TND)',
+          labelStyle: TextStyle(color: _textGray, fontSize: 14),
           border: InputBorder.none,
+          contentPadding: const EdgeInsets.all(12),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF10B981), width: 2),
+            borderRadius: BorderRadius.circular(4),
+            borderSide: BorderSide(color: _primaryBlue, width: 2),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
       ),
     );
@@ -76,65 +81,34 @@ class SiteDetailsProjectInfoCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: _lightGray,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _borderGray),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: hasBudget
-                      ? const Color(0xFF10B981).withOpacity(0.1)
-                      : const Color(0xFF6B7280).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.attach_money_rounded,
-                  color: hasBudget ? const Color(0xFF10B981) : const Color(0xFF6B7280),
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _formatCurrency(budgetController.text),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: hasBudget ? const Color(0xFF10B981) : const Color(0xFF6B7280),
-                      ),
-                    ),
-                    if (hasBudget)
-                      const Text(
-                        "Allocated for this project",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF6B7280),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+          Text(
+            _formatCurrency(budgetController.text),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: _darkText,
+            ),
           ),
+          if (hasBudget) ...[
+            const SizedBox(height: 4),
+            Text(
+              "Allocated for this project",
+              style: TextStyle(
+                fontSize: 12,
+                color: _textGray,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ],
         ],
       ),
     );

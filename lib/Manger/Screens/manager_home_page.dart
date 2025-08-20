@@ -1,6 +1,6 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:constructionproject/Construction/Core/Constants/api_constants.dart';
-import 'package:constructionproject/Manger/Service/conectivty_service.dart';
 import 'package:constructionproject/Manger/manager_provider/ManagerLocationProvider.dart';
 import 'package:constructionproject/Manger/manager_provider/atendence_provider.dart';
 import 'package:constructionproject/Manger/manager_provider/manager_provider.dart';
@@ -11,9 +11,34 @@ import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../auth/services/auth/auth_service.dart';
 
+// Utility function for geofence check
+bool isOutOfGeofence({
+  required double userLat,
+  required double userLng,
+  required double siteLat,
+  required double siteLng,
+  required double radiusInMeters,
+}) {
+  double distance = _calculateDistance(userLat, userLng, siteLat, siteLng);
+  return distance > radiusInMeters;
+}
+
+double _calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+  // Haversine formula
+  const double earthRadius = 6371000; // meters
+  double dLat = _deg2rad(lat2 - lat1);
+  double dLng = _deg2rad(lng2 - lng1);
+  double a = sin(dLat / 2) * sin(dLat / 2) +
+      cos(_deg2rad(lat1)) * cos(_deg2rad(lat2)) *
+          sin(dLng / 2) * sin(dLng / 2);
+  double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+  return earthRadius * c;
+}
+
+double _deg2rad(double deg) => deg * (pi / 180.0);
+
 class ManagerHomeScreen extends StatefulWidget {
   const ManagerHomeScreen({super.key});
-
   @override
   State<ManagerHomeScreen> createState() => _ManagerHomeScreenState();
 }
@@ -24,20 +49,13 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   bool _locationStarted = false;
   String? ownerId;
 
-  // Responsive breakpoints
-  bool get isTablet => MediaQuery.of(context).size.width > 600;
-  bool get isSmallScreen => MediaQuery.of(context).size.height < 650;
-
-  // Responsive values
-  EdgeInsets get responsivePadding => EdgeInsets.all(isTablet ? 24 : 16);
-  double get responsiveSpacing => isTablet ? 24 : 16;
-  double get cardPadding => isTablet ? 24 : 16;
+  // For storing manager location
+  double? managerLat;
+  double? managerLng;
 
   @override
   void initState() {
     super.initState();
-
-    // Clear errors when user types
     _codeController.addListener(() {
       final attendanceProvider = Provider.of<AttendanceProvider>(context, listen: false);
       if (attendanceProvider.error != null) {
@@ -48,7 +66,29 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     Future.microtask(() async {
       await context.read<ManagerDataProvider>().loadSiteAndWorkers();
       await _fetchManagerAndStoreOwnerId();
+      await _getCurrentLocation();
     });
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        return;
+      }
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      if (mounted) {
+        setState(() {
+          managerLat = position.latitude;
+          managerLng = position.longitude;
+        });
+      }
+    } catch (e) {
+      // Could not get location
+    }
   }
 
   Future<void> _fetchManagerAndStoreOwnerId() async {
@@ -70,18 +110,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         }
         await _startLocationTracking(ownerId: fetchedOwnerId);
       } else {
-        if (mounted) {
-          setState(() {
-            ownerId = null;
-          });
-        }
+        if (mounted) setState(() { ownerId = null; });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          ownerId = null;
-        });
-      }
+      if (mounted) setState(() { ownerId = null; });
     }
   }
 
@@ -116,7 +148,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         Geolocator.getPositionStream(
           locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.high,
-            distanceFilter: 10,
+            distanceFilter: 1,
           ),
         ).listen((Position position) {
           locationProvider.sendLocation(
@@ -126,6 +158,12 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
             longitude: position.longitude,
             ownerId: ownerId,
           );
+          if (mounted) {
+            setState(() {
+              managerLat = position.latitude;
+              managerLng = position.longitude;
+            });
+          }
         });
       });
     } catch (e) {
@@ -137,111 +175,15 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     try {
       final picked = await _picker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 800,  // Optimize for mobile
+        maxWidth: 800,
         maxHeight: 600,
         imageQuality: 80,
       );
       return picked?.path;
     } catch (e) {
-      if (mounted) {
-        _showErrorSnackBar('Camera access failed. Please try again.');
-      }
+      if (mounted) _showErrorSnackBar('Camera access failed. Please try again.');
       return null;
     }
-  }
-
-  Widget _buildOfflineIndicator(AttendanceProvider attendanceProvider) {
-    if (!attendanceProvider.hasOfflineCapabilities || attendanceProvider.pendingRequestsCount == 0) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      margin: EdgeInsets.only(bottom: responsiveSpacing * 0.75),
-      padding: EdgeInsets.all(isTablet ? 16 : 12),
-      decoration: BoxDecoration(
-        color: Colors.orange[50],
-        borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
-        border: Border.all(color: Colors.orange[200]!),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.cloud_off, color: Colors.orange[600], size: isTablet ? 24 : 20),
-          SizedBox(width: isTablet ? 12 : 8),
-          Expanded(
-            child: Text(
-              '${attendanceProvider.pendingRequestsCount} requests pending sync',
-              style: TextStyle(
-                color: Colors.orange[600],
-                fontSize: isTablet ? 16 : 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          if (attendanceProvider.isSyncing)
-            SizedBox(
-              width: isTablet ? 20 : 16,
-              height: isTablet ? 20 : 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.orange[600]!),
-              ),
-            )
-          else
-            TextButton(
-              onPressed: () => attendanceProvider.syncPendingRequests(),
-              style: TextButton.styleFrom(
-                minimumSize: const Size(60, 32),
-                padding: EdgeInsets.symmetric(
-                  horizontal: isTablet ? 16 : 12,
-                  vertical: isTablet ? 8 : 6,
-                ),
-              ),
-              child: Text(
-                'Sync',
-                style: TextStyle(
-                  color: Colors.orange[600],
-                  fontSize: isTablet ? 14 : 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildConnectionStatus() {
-    return Consumer<ConnectivityService>(
-      builder: (context, connectivity, child) {
-        if (connectivity.isOnline) return const SizedBox.shrink();
-
-        return Container(
-          margin: EdgeInsets.only(bottom: responsiveSpacing * 0.75),
-          padding: EdgeInsets.all(isTablet ? 16 : 12),
-          decoration: BoxDecoration(
-            color: Colors.red[50],
-            borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
-            border: Border.all(color: Colors.red[200]!),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.wifi_off, color: Colors.red[600], size: isTablet ? 24 : 20),
-              SizedBox(width: isTablet ? 12 : 8),
-              Expanded(
-                child: Text(
-                  'No internet connection - working offline',
-                  style: TextStyle(
-                    color: Colors.red[600],
-                    fontSize: isTablet ? 16 : 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   @override
@@ -256,75 +198,48 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     final managerProvider = Provider.of<ManagerDataProvider>(context);
     final attendanceProvider = Provider.of<AttendanceProvider>(context);
 
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(
-          'Manager Dashboard',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: isTablet ? 22 : 20,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.grey[800],
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          Consumer<AttendanceProvider>(
-            builder: (context, attendanceProvider, child) {
-              if (!attendanceProvider.hasOfflineCapabilities ||
-                  attendanceProvider.pendingRequestsCount == 0) {
-                return const SizedBox.shrink();
-              }
+    // Geofence check logic
+    bool outOfGeofence = false;
+    final site = managerProvider.site;
+    if (site != null && site.geofenceRadius != null && managerLat != null && managerLng != null) {
+      outOfGeofence = isOutOfGeofence(
+        userLat: managerLat!,
+        userLng: managerLng!,
+        siteLat: site.latitude,
+        siteLng: site.longitude,
+        radiusInMeters: site.geofenceRadius!.toDouble(),
+      );
+    }
 
-              return Padding(
-                padding: EdgeInsets.only(right: isTablet ? 16 : 8),
-                child: IconButton(
-                  icon: attendanceProvider.isSyncing
-                      ? SizedBox(
-                    width: isTablet ? 24 : 20,
-                    height: isTablet ? 24 : 20,
-                    child: const CircularProgressIndicator(strokeWidth: 2),
-                  )
-                      : Icon(Icons.sync, size: isTablet ? 28 : 24),
-                  onPressed: attendanceProvider.isSyncing
-                      ? null
-                      : () => attendanceProvider.syncPendingRequests(),
-                  tooltip: 'Sync pending requests',
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: _buildAppBar(outOfGeofence),
       body: RefreshIndicator(
         onRefresh: () async {
           await context.read<ManagerDataProvider>().loadSiteAndWorkers();
+          await _getCurrentLocation();
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: responsivePadding,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Status indicators
-              _buildConnectionStatus(),
-              _buildOfflineIndicator(attendanceProvider),
+              // Geofence warning banner
+              if (outOfGeofence) _buildGeofenceWarning(),
 
-              // Quick Actions Section
-              _buildQuickActionsCard(attendanceProvider, managerProvider),
-              SizedBox(height: responsiveSpacing),
-
-              // Site Information Section
-              _buildSiteInfoCard(managerProvider),
-              SizedBox(height: responsiveSpacing),
-
-              // Workers Section
-              _buildWorkersCard(managerProvider),
-
-              // Add bottom padding for better scrolling experience
-              SizedBox(height: responsiveSpacing),
+              // Main content with proper spacing
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    _buildAttendanceCard(attendanceProvider, managerProvider, outOfGeofence),
+                    const SizedBox(height: 16),
+                    _buildSiteInfoCard(managerProvider),
+                    const SizedBox(height: 16),
+                    _buildWorkersCard(managerProvider),
+                    const SizedBox(height: 20), // Extra bottom padding
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -332,412 +247,257 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     );
   }
 
-  Widget _buildQuickActionsCard(AttendanceProvider attendanceProvider, ManagerDataProvider managerProvider) {
+  PreferredSizeWidget _buildAppBar(bool outOfGeofence) {
+    return AppBar(
+      title: const Text(
+        'Site Manager',
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 20,
+          color: Colors.white,
+        ),
+      ),
+      backgroundColor: outOfGeofence ? const Color(0xFFDC2626) : const Color(0xFF1E40AF),
+      elevation: 0,
+      centerTitle: true,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.logout, color: Colors.white),
+          onPressed: () => _showLogoutDialog(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGeofenceWarning() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFEE2E2),
+        border: Border(bottom: BorderSide(color: Color(0xFFFECACA), width: 1)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: Colors.red[600], size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Outside Geofence Area',
+                  style: TextStyle(
+                    color: Colors.red[800],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'Check-in/check-out functions are disabled',
+                  style: TextStyle(
+                    color: Colors.red[600],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttendanceCard(AttendanceProvider attendanceProvider, ManagerDataProvider managerProvider, bool outOfGeofence) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            spreadRadius: 0,
-            blurRadius: 20,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(cardPadding),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(isTablet ? 12 : 8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
-                  ),
-                  child: Icon(
-                    Icons.work_outline,
-                    color: Colors.blue[600],
-                    size: isTablet ? 24 : 20,
-                  ),
-                ),
-                SizedBox(width: isTablet ? 16 : 12),
-                Expanded(
-                  child: Text(
-                    'Worker Management',
-                    style: TextStyle(
-                      fontSize: isTablet ? 20 : 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ],
+            _buildSectionHeader(
+              icon: Icons.how_to_reg,
+              title: 'Worker Attendance',
+              color: const Color(0xFF059669),
             ),
-            SizedBox(height: responsiveSpacing),
+            const SizedBox(height: 20),
 
-            // Worker Code Input
+            // Worker code input
             TextField(
               controller: _codeController,
-              onSubmitted: (_) => FocusScope.of(context).unfocus(),
+              enabled: !outOfGeofence,
               decoration: InputDecoration(
                 labelText: "Worker Code",
-                hintText: "Enter worker code",
-                prefixIcon: Icon(Icons.qr_code, size: isTablet ? 24 : 20),
+                hintText: "Enter worker code or scan QR",
+                prefixIcon: Icon(Icons.qr_code_scanner,
+                    color: outOfGeofence ? Colors.grey : const Color(0xFF6366F1)),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                  borderSide: BorderSide(color: Colors.blue[600]!),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
                 ),
                 filled: true,
-                fillColor: Colors.grey[50],
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: isTablet ? 20 : 16,
-                  vertical: isTablet ? 20 : 16,
-                ),
-                labelStyle: TextStyle(fontSize: isTablet ? 16 : 14),
-                hintStyle: TextStyle(fontSize: isTablet ? 16 : 14),
-              ),
-              style: TextStyle(fontSize: isTablet ? 16 : 14),
-            ),
-            SizedBox(height: responsiveSpacing * 0.75),
-
-            // Error Message
-            if (attendanceProvider.error != null)
-              Container(
-                margin: EdgeInsets.only(bottom: responsiveSpacing * 0.75),
-                padding: EdgeInsets.all(isTablet ? 16 : 12),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
-                  border: Border.all(color: Colors.red[200]!),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.red[600], size: isTablet ? 20 : 16),
-                    SizedBox(width: isTablet ? 12 : 8),
-                    Expanded(
-                      child: Text(
-                        attendanceProvider.error!,
-                        style: TextStyle(
-                          color: Colors.red[600],
-                          fontSize: isTablet ? 16 : 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            // Manual Check-in/out Buttons
-            _buildResponsiveButtonRow([
-              _ActionButtonConfig(
-                label: 'Check In',
-                icon: Icons.login,
-                color: Colors.green,
-                onPressed: () async {
-                  FocusScope.of(context).unfocus();
-                  final code = _codeController.text.trim();
-                  if (code.isEmpty) {
-                    _showErrorSnackBar('Please enter a worker code');
-                    return;
-                  }
-
-                  final success = await attendanceProvider.checkIn(code);
-                  if (success && mounted) {
-                    _codeController.clear();
-                    if (attendanceProvider.isOffline) {
-                      _showSuccessSnackBar('Check-in saved offline. Will sync when online.');
-                    } else {
-                      _showSuccessSnackBar('Worker checked in successfully!');
-                    }
-                  }
-                },
-              ),
-              _ActionButtonConfig(
-                label: 'Check Out',
-                icon: Icons.logout,
-                color: Colors.orange,
-                onPressed: () async {
-                  FocusScope.of(context).unfocus();
-                  final success = await attendanceProvider.checkOut(_codeController.text.trim());
-                  if (success && mounted) {
-                    if (attendanceProvider.isOffline) {
-                      _showSuccessSnackBar('Check-out saved offline. Will sync when online.');
-                    } else {
-                      _showSuccessSnackBar('Worker checked out successfully!');
-                    }
-                  }
-                },
-              ),
-            ], attendanceProvider.isLoading),
-            SizedBox(height: responsiveSpacing),
-
-            // Face Recognition Section
-            Container(
-              padding: EdgeInsets.all(isTablet ? 20 : 16),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.face, color: Colors.purple[600], size: isTablet ? 24 : 20),
-                      SizedBox(width: isTablet ? 12 : 8),
-                      Expanded(
-                        child: Text(
-                          'Face Recognition',
-                          style: TextStyle(
-                            fontSize: isTablet ? 18 : 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: responsiveSpacing * 0.75),
-
-                  // Face Registration Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: _buildActionButton(
-                      label: 'Register Face',
-                      icon: Icons.face_retouching_natural,
-                      color: Colors.purple,
-                      isLoading: attendanceProvider.isLoading,
-                      isSecondary: true,
-                      onPressed: () async {
-                        FocusScope.of(context).unfocus();
-                        final code = _codeController.text.trim();
-                        if (code.isEmpty) {
-                          _showErrorSnackBar('Please enter worker code first');
-                          return;
-                        }
-                        final photoPath = await pickPhoto();
-                        if (photoPath != null) {
-                          final success = await attendanceProvider.registerFace(code, photoPath);
-                          if (success && mounted) {
-                            _showSuccessSnackBar('Face registered successfully!');
-                          }
-                        }
-                      },
-                    ),
-                  ),
-                  SizedBox(height: responsiveSpacing * 0.5),
-
-                  // Face Check-in/out Buttons
-                  _buildResponsiveButtonRow([
-                    _ActionButtonConfig(
-                      label: 'Face Check In',
-                      icon: Icons.camera_alt,
-                      color: Colors.green,
-                      isSecondary: true,
-                      onPressed: () async {
-                        FocusScope.of(context).unfocus();
-                        final siteId = managerProvider.site?.id ?? '';
-                        final photoPath = await pickPhoto();
-                        if (photoPath != null) {
-                          final success = await attendanceProvider.checkInWithFace(photoPath, siteId);
-                          if (success && mounted) {
-                            _showSuccessSnackBar('Face check-in successful!');
-                          }
-                        }
-                      },
-                    ),
-                    _ActionButtonConfig(
-                      label: 'Face Check Out',
-                      icon: Icons.camera_alt_outlined,
-                      color: Colors.orange,
-                      isSecondary: true,
-                      onPressed: () async {
-                        FocusScope.of(context).unfocus();
-                        final photoPath = await pickPhoto();
-                        if (photoPath != null) {
-                          final success = await attendanceProvider.checkOutWithFace(photoPath);
-                          if (success && mounted) {
-                            _showSuccessSnackBar('Face check-out successful!');
-                          }
-                        }
-                      },
-                    ),
-                  ], attendanceProvider.isLoading),
-                ],
+                fillColor: outOfGeofence ? const Color(0xFFF9FAFB) : Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
             ),
+
+            if (attendanceProvider.error != null) ...[
+              const SizedBox(height: 12),
+              _buildErrorMessage(attendanceProvider.error!),
+            ],
+
+            const SizedBox(height: 20),
+
+            // Action buttons
+            _buildActionButtons(attendanceProvider, managerProvider, outOfGeofence),
+
+            const SizedBox(height: 20),
+            const Divider(color: Color(0xFFE5E7EB)),
+            const SizedBox(height: 20),
+
+            // Face recognition section
+            _buildFaceRecognitionSection(attendanceProvider, managerProvider, outOfGeofence),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildResponsiveButtonRow(List<_ActionButtonConfig> buttons, bool isLoading) {
-    if (isSmallScreen && buttons.length > 1) {
-      // Stack buttons vertically on small screens
-      return Column(
-        children: buttons.asMap().entries.map((entry) {
-          final index = entry.key;
-          final button = entry.value;
-          return Column(
+  Widget _buildActionButtons(AttendanceProvider attendanceProvider, ManagerDataProvider managerProvider, bool outOfGeofence) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildPrimaryButton(
+            label: 'Check In',
+            icon: Icons.login,
+            color: const Color(0xFF059669),
+            isLoading: attendanceProvider.isLoading,
+            isEnabled: !outOfGeofence,
+            onPressed: () => _handleCheckIn(attendanceProvider),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildPrimaryButton(
+            label: 'Check Out',
+            icon: Icons.logout,
+            color: const Color(0xFFEA580C),
+            isLoading: attendanceProvider.isLoading,
+            isEnabled: !outOfGeofence,
+            onPressed: () => _handleCheckOut(attendanceProvider),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFaceRecognitionSection(AttendanceProvider attendanceProvider, ManagerDataProvider managerProvider, bool outOfGeofence) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              SizedBox(
-                width: double.infinity,
-                child: _buildActionButton(
-                  label: button.label,
-                  icon: button.icon,
-                  color: button.color,
-                  isLoading: isLoading,
-                  isSecondary: button.isSecondary,
-                  onPressed: button.onPressed,
+              Icon(Icons.face_retouching_natural,
+                  color: const Color(0xFF7C3AED), size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Face Recognition',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF374151),
                 ),
               ),
-              if (index < buttons.length - 1) SizedBox(height: responsiveSpacing * 0.5),
             ],
-          );
-        }).toList(),
-      );
-    } else {
-      // Show buttons in a row for larger screens
-      return Row(
-        children: buttons.asMap().entries.map((entry) {
-          final index = entry.key;
-          final button = entry.value;
-          return Expanded(
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildActionButton(
-                    label: button.label,
-                    icon: button.icon,
-                    color: button.color,
-                    isLoading: isLoading,
-                    isSecondary: button.isSecondary,
-                    onPressed: button.onPressed,
-                  ),
-                ),
-                if (index < buttons.length - 1) SizedBox(width: responsiveSpacing * 0.5),
-              ],
+          ),
+          const SizedBox(height: 16),
+
+          // Register face button
+          SizedBox(
+            width: double.infinity,
+            child: _buildSecondaryButton(
+              label: 'Register Worker Face',
+              icon: Icons.face_retouching_natural,
+              color: const Color(0xFF7C3AED),
+              isLoading: attendanceProvider.isLoading,
+              isEnabled: !outOfGeofence,
+              onPressed: () => _handleRegisterFace(attendanceProvider),
             ),
-          );
-        }).toList(),
-      );
-    }
+          ),
+          const SizedBox(height: 12),
+
+          // Face check-in/out buttons
+          Row(
+            children: [
+              Expanded(
+                child: _buildSecondaryButton(
+                  label: 'Face Check In',
+                  icon: Icons.camera_alt,
+                  color: const Color(0xFF059669),
+                  isLoading: attendanceProvider.isLoading,
+                  isEnabled: !outOfGeofence,
+                  onPressed: () => _handleFaceCheckIn(attendanceProvider, managerProvider),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSecondaryButton(
+                  label: 'Face Check Out',
+                  icon: Icons.camera_alt_outlined,
+                  color: const Color(0xFFEA580C),
+                  isLoading: attendanceProvider.isLoading,
+                  isEnabled: !outOfGeofence,
+                  onPressed: () => _handleFaceCheckOut(attendanceProvider),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSiteInfoCard(ManagerDataProvider managerProvider) {
     if (managerProvider.isLoading) {
-      return Container(
-        width: double.infinity,
-        height: isTablet ? 140 : 120,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
-              spreadRadius: 0,
-              blurRadius: 20,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: const Center(child: CircularProgressIndicator()),
-      );
+      return _buildLoadingCard();
     }
 
     if (managerProvider.error != null) {
-      return Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
-              spreadRadius: 0,
-              blurRadius: 20,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(cardPadding),
-          child: Column(
-            children: [
-              Icon(Icons.error_outline, color: Colors.red[400], size: isTablet ? 56 : 48),
-              SizedBox(height: responsiveSpacing * 0.75),
-              Text(
-                'Error loading site info',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: isTablet ? 18 : 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              SizedBox(height: responsiveSpacing * 0.5),
-              Text(
-                managerProvider.error!,
-                style: TextStyle(
-                  color: Colors.red[600],
-                  fontSize: isTablet ? 16 : 14,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildErrorCard('Error loading site info', managerProvider.error!);
     }
 
     if (managerProvider.site == null) {
-      return Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
-              spreadRadius: 0,
-              blurRadius: 20,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(cardPadding),
-          child: Column(
-            children: [
-              Icon(Icons.location_off, color: Colors.grey[400], size: isTablet ? 56 : 48),
-              SizedBox(height: responsiveSpacing * 0.75),
-              Text(
-                'No assigned site',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: isTablet ? 18 : 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
+      return _buildEmptyCard(
+        icon: Icons.location_off,
+        title: 'No Site Assigned',
+        subtitle: 'Contact your administrator to assign a construction site.',
       );
     }
 
@@ -746,134 +506,110 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            spreadRadius: 0,
-            blurRadius: 20,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(cardPadding),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildSectionHeader(
+              icon: Icons.location_city,
+              title: 'Site Information',
+              color: const Color(0xFF0284C7),
+            ),
+            const SizedBox(height: 16),
+
+            // Site name and status
             Row(
               children: [
-                Container(
-                  padding: EdgeInsets.all(isTablet ? 12 : 8),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
-                  ),
-                  child: Icon(
-                    Icons.location_city,
-                    color: Colors.green[600],
-                    size: isTablet ? 24 : 20,
-                  ),
-                ),
-                SizedBox(width: isTablet ? 16 : 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         site.name,
-                        style: TextStyle(
-                          fontSize: isTablet ? 20 : 18,
+                        style: const TextStyle(
+                          fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: Color(0xFF111827),
                         ),
-                        overflow: TextOverflow.ellipsis,
                         maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 4),
                       Text(
                         site.adresse,
-                        style: TextStyle(
-                          fontSize: isTablet ? 16 : 14,
-                          color: Colors.grey[600],
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF6B7280),
                         ),
-                        overflow: TextOverflow.ellipsis,
                         maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isTablet ? 12 : 8,
-                    vertical: isTablet ? 6 : 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: site.isActive ? Colors.green[50] : Colors.red[50],
-                    borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
+                    color: site.isActive ? const Color(0xFFD1FAE5) : const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     site.isActive ? 'Active' : 'Inactive',
                     style: TextStyle(
-                      color: site.isActive ? Colors.green[600] : Colors.red[600],
-                      fontSize: isTablet ? 14 : 12,
-                      fontWeight: FontWeight.w500,
+                      color: site.isActive ? const Color(0xFF065F46) : const Color(0xFF991B1B),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ],
             ),
-            SizedBox(height: responsiveSpacing),
 
-            // Site details in responsive layout
-            if (isTablet)
-              Row(
+            const SizedBox(height: 20),
+
+            // Site details grid
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
                 children: [
-                  Expanded(
-                    child: _buildSiteInfoItem(
-                      icon: Icons.my_location,
-                      label: 'Coordinates',
-                      value: '${site.latitude.toStringAsFixed(4)}, ${site.longitude.toStringAsFixed(4)}',
-                    ),
-                  ),
-                  SizedBox(width: responsiveSpacing),
-                  Expanded(
-                    child: _buildSiteInfoItem(
-                      icon: Icons.radio_button_unchecked,
-                      label: 'Geofence',
-                      value: '${site.geofenceRadius ?? "N/A"} meters',
-                    ),
-                  ),
-                  SizedBox(width: responsiveSpacing),
-                  Expanded(
-                    child: _buildSiteInfoItem(
-                      icon: Icons.attach_money,
-                      label: 'Budget',
-                      value: site.budget ?? "Not set",
-                    ),
-                  ),
-                ],
-              )
-            else
-              Column(
-                children: [
-                  _buildSiteInfoItem(
-                    icon: Icons.my_location,
-                    label: 'Coordinates',
-                    value: '${site.latitude.toStringAsFixed(4)}, ${site.longitude.toStringAsFixed(4)}',
-                  ),
-                  SizedBox(height: responsiveSpacing * 0.75),
                   Row(
                     children: [
                       Expanded(
-                        child: _buildSiteInfoItem(
-                          icon: Icons.radio_button_unchecked,
-                          label: 'Geofence',
-                          value: '${site.geofenceRadius ?? "N/A"} meters',
+                        child: _buildInfoItem(
+                          icon: Icons.my_location,
+                          label: 'Coordinates',
+                          value: '${site.latitude.toStringAsFixed(4)}, ${site.longitude.toStringAsFixed(4)}',
                         ),
                       ),
-                      SizedBox(width: responsiveSpacing),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
                       Expanded(
-                        child: _buildSiteInfoItem(
+                        child: _buildInfoItem(
+                          icon: Icons.radio_button_unchecked,
+                          label: 'Geofence',
+                          value: '${site.geofenceRadius ?? "N/A"}m',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildInfoItem(
                           icon: Icons.attach_money,
                           label: 'Budget',
                           value: site.budget ?? "Not set",
@@ -883,43 +619,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   ),
                 ],
               ),
+            ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSiteInfoItem({required IconData icon, required String label, required String value}) {
-    return Row(
-      children: [
-        Icon(icon, size: isTablet ? 20 : 16, color: Colors.grey[500]),
-        SizedBox(width: isTablet ? 12 : 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: isTablet ? 14 : 12,
-                  color: Colors.grey[500],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: isTablet ? 16 : 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -928,238 +631,567 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(isTablet ? 20 : 16),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            spreadRadius: 0,
-            blurRadius: 20,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Padding(
-        padding: EdgeInsets.all(cardPadding),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(isTablet ? 12 : 8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
-                  ),
-                  child: Icon(
-                    Icons.group,
-                    color: Colors.blue[600],
-                    size: isTablet ? 24 : 20,
-                  ),
+            _buildSectionHeader(
+              icon: Icons.group,
+              title: 'Workers (${managerProvider.workers.length})',
+              color: const Color(0xFF7C3AED),
+            ),
+            const SizedBox(height: 16),
+
+            if (managerProvider.workers.isEmpty)
+              _buildEmptyState()
+            else
+              ...managerProvider.workers.map((worker) => _buildWorkerItem(worker)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWorkerItem(Map<String, dynamic> worker) {
+    final isVerified = worker['faceRegistered'] == true;
+    final firstName = worker['firstName']?.toString() ?? 'Unknown';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          // Avatar
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Center(
+              child: Text(
+                firstName[0].toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
-                SizedBox(width: isTablet ? 16 : 12),
-                Expanded(
-                  child: Text(
-                    'Workers (${managerProvider.workers.length})',
-                    style: TextStyle(
-                      fontSize: isTablet ? 20 : 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Worker info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  firstName,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF111827),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isVerified ? 'Face verified' : 'Face registration pending',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isVerified ? const Color(0xFF059669) : const Color(0xFF92400E),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
-            SizedBox(height: responsiveSpacing),
+          ),
 
-            if (managerProvider.workers.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(isTablet ? 24 : 20),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
+          // Status badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isVerified ? const Color(0xFFD1FAE5) : const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isVerified ? Icons.verified : Icons.schedule,
+                  size: 12,
+                  color: isVerified ? const Color(0xFF059669) : const Color(0xFF92400E),
                 ),
-                child: Column(
-                  children: [
-                    Icon(Icons.group_off, color: Colors.grey[400], size: isTablet ? 56 : 48),
-                    SizedBox(height: responsiveSpacing * 0.75),
-                    Text(
-                      'No workers assigned',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: isTablet ? 18 : 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 4),
+                Text(
+                  isVerified ? 'Verified' : 'Pending',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: isVerified ? const Color(0xFF059669) : const Color(0xFF92400E),
+                  ),
                 ),
-              )
-            else
-              ...managerProvider.workers.map((worker) => Container(
-                margin: EdgeInsets.only(bottom: responsiveSpacing * 0.75),
-                padding: EdgeInsets.all(isTablet ? 20 : 16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: isTablet ? 56 : 48,
-                      height: isTablet ? 56 : 48,
-                      decoration: BoxDecoration(
-                        color: Colors.blue[100],
-                        borderRadius: BorderRadius.circular(isTablet ? 28 : 24),
-                      ),
-                      child: Center(
-                        child: Text(
-                          (worker['firstName']?.toString() ?? 'U')[0].toUpperCase(),
-                          style: TextStyle(
-                            fontSize: isTablet ? 22 : 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue[700],
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: isTablet ? 20 : 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            worker['firstName']?.toString() ?? 'Unknown',
-                            style: TextStyle(
-                              fontSize: isTablet ? 18 : 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isTablet ? 12 : 8,
-                        vertical: isTablet ? 6 : 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: worker['faceRegistered'] == true ? Colors.green[50] : Colors.orange[50],
-                        borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            worker['faceRegistered'] == true ? Icons.verified : Icons.warning,
-                            size: isTablet ? 18 : 14,
-                            color: worker['faceRegistered'] == true ? Colors.green[600] : Colors.orange[600],
-                          ),
-                          SizedBox(width: isTablet ? 6 : 4),
-                          Text(
-                            worker['faceRegistered'] == true ? 'Verified' : 'Pending',
-                            style: TextStyle(
-                              fontSize: isTablet ? 14 : 12,
-                              fontWeight: FontWeight.w500,
-                              color: worker['faceRegistered'] == true ? Colors.green[600] : Colors.orange[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+  // Helper widgets
+  Widget _buildSectionHeader({required IconData icon, required String title, required Color color}) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF111827),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPrimaryButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool isLoading,
+    required bool isEnabled,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: (isLoading || !isEnabled) ? null : onPressed,
+      icon: isLoading
+          ? SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        ),
+      )
+          : Icon(icon, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isEnabled ? color : const Color(0xFF9CA3AF),
+        foregroundColor: Colors.white,
+        elevation: isEnabled ? 2 : 0,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _buildSecondaryButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool isLoading,
+    required bool isEnabled,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: (isLoading || !isEnabled) ? null : onPressed,
+      icon: isLoading
+          ? SizedBox(
+        width: 14,
+        height: 14,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(color),
+        ),
+      )
+          : Icon(icon, size: 16),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 13),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: isEnabled ? color : const Color(0xFF9CA3AF),
+        side: BorderSide(
+          color: isEnabled ? color : const Color(0xFF9CA3AF),
+        ),
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _buildErrorMessage(String message) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEE2E2),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFECACA)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red[600], size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFF991B1B),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoItem({required IconData icon, required String label, required String value}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: const Color(0xFF6B7280)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF6B7280),
+                  fontWeight: FontWeight.w500,
                 ),
-              )),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF111827),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoadingCard() {
+    return Container(
+      width: double.infinity,
+      height: 120,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorCard(String title, String message) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red[400], size: 48),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF111827),
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFF991B1B),
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildActionButton({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onPressed,
-    required bool isLoading,
-    bool isSecondary = false,
-  }) {
-    return ElevatedButton.icon(
-      onPressed: isLoading ? null : onPressed,
-      icon: isLoading
-          ? SizedBox(
-        width: isTablet ? 20 : 16,
-        height: isTablet ? 20 : 16,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(
-            isSecondary ? color : Colors.white,
+  Widget _buildEmptyCard({required IconData icon, required String title, required String subtitle}) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-        ),
-      )
-          : Icon(icon, size: isTablet ? 22 : 18),
-      label: Text(
-        label,
-        style: TextStyle(
-          fontSize: isTablet ? 16 : 14,
-          fontWeight: FontWeight.w600,
-        ),
+        ],
       ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isSecondary ? Colors.white : color,
-        foregroundColor: isSecondary ? color : Colors.white,
-        side: isSecondary ? BorderSide(color: color) : null,
-        elevation: isSecondary ? 0 : 2,
-        padding: EdgeInsets.symmetric(
-          vertical: isTablet ? 16 : 12,
-          horizontal: isTablet ? 20 : 16,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Icon(icon, color: const Color(0xFF9CA3AF), size: 48),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF111827),
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(isTablet ? 16 : 12),
-        ),
-        minimumSize: Size(double.infinity, isTablet ? 56 : 48),
       ),
     );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.group_off, color: const Color(0xFF9CA3AF), size: 48),
+          const SizedBox(height: 16),
+          const Text(
+            'No Workers Assigned',
+            style: TextStyle(
+              color: Color(0xFF111827),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Workers will appear here once they are assigned to this construction site.',
+            style: TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Event handlers
+  Future<void> _handleCheckIn(AttendanceProvider attendanceProvider) async {
+    FocusScope.of(context).unfocus();
+    final code = _codeController.text.trim();
+    if (code.isEmpty) {
+      _showErrorSnackBar('Please enter a worker code');
+      return;
+    }
+    final success = await attendanceProvider.checkIn(code);
+    if (success && mounted) {
+      _codeController.clear();
+      _showSuccessSnackBar('Worker checked in successfully!');
+    }
+  }
+
+  Future<void> _handleCheckOut(AttendanceProvider attendanceProvider) async {
+    FocusScope.of(context).unfocus();
+    final code = _codeController.text.trim();
+    if (code.isEmpty) {
+      _showErrorSnackBar('Please enter a worker code');
+      return;
+    }
+    final success = await attendanceProvider.checkOut(code);
+    if (success && mounted) {
+      _codeController.clear();
+      _showSuccessSnackBar('Worker checked out successfully!');
+    }
+  }
+
+  Future<void> _handleRegisterFace(AttendanceProvider attendanceProvider) async {
+    FocusScope.of(context).unfocus();
+    final code = _codeController.text.trim();
+    if (code.isEmpty) {
+      _showErrorSnackBar('Please enter worker code first');
+      return;
+    }
+    final photoPath = await pickPhoto();
+    if (photoPath != null) {
+      final success = await attendanceProvider.registerFace(code, photoPath);
+      if (success && mounted) {
+        _showSuccessSnackBar('Face registered successfully!');
+      }
+    }
+  }
+
+  Future<void> _handleFaceCheckIn(AttendanceProvider attendanceProvider, ManagerDataProvider managerProvider) async {
+    FocusScope.of(context).unfocus();
+    final siteId = managerProvider.site?.id ?? '';
+    final photoPath = await pickPhoto();
+    if (photoPath != null) {
+      final success = await attendanceProvider.checkInWithFace(photoPath, siteId);
+      if (success && mounted) {
+        _showSuccessSnackBar('Face check-in successful!');
+      }
+    }
+  }
+
+  Future<void> _handleFaceCheckOut(AttendanceProvider attendanceProvider) async {
+    FocusScope.of(context).unfocus();
+    final photoPath = await pickPhoto();
+    if (photoPath != null) {
+      final success = await attendanceProvider.checkOutWithFace(photoPath);
+      if (success && mounted) {
+        _showSuccessSnackBar('Face check-out successful!');
+      }
+    }
+  }
+
+  Future<void> _showLogoutDialog() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Logout',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text(
+              'Logout',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _logout();
+    }
+  }
+
+  Future<void> _logout() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.logout();
+      // TODO: Navigate to login screen, replace with your routing logic
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+    } catch (e) {
+      _showErrorSnackBar('Logout failed: $e');
+    }
   }
 
   void _showSuccessSnackBar(String message) {
     if (!mounted) return;
-
-    ScaffoldMessenger.of(context).clearSnackBars(); // Clear existing snackbars
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.white, size: isTablet ? 24 : 20),
-            SizedBox(width: isTablet ? 12 : 8),
+            const Icon(Icons.check_circle, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 message,
-                style: TextStyle(
-                  fontSize: isTablet ? 16 : 14,
+                style: const TextStyle(
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 2,
               ),
             ),
           ],
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: const Color(0xFF059669),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
-        ),
-        margin: EdgeInsets.all(isTablet ? 20 : 16),
-        padding: EdgeInsets.symmetric(
-          horizontal: isTablet ? 20 : 16,
-          vertical: isTablet ? 16 : 12,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -1167,56 +1199,31 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
 
   void _showErrorSnackBar(String message) {
     if (!mounted) return;
-
-    ScaffoldMessenger.of(context).clearSnackBars(); // Clear existing snackbars
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error, color: Colors.white, size: isTablet ? 24 : 20),
-            SizedBox(width: isTablet ? 12 : 8),
+            const Icon(Icons.error, color: Colors.white, size: 20),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 message,
-                style: TextStyle(
-                  fontSize: isTablet ? 16 : 14,
+                style: const TextStyle(
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 2,
               ),
             ),
           ],
         ),
-        backgroundColor: Colors.red,
+        backgroundColor: const Color(0xFFDC2626),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(isTablet ? 12 : 8),
-        ),
-        margin: EdgeInsets.all(isTablet ? 20 : 16),
-        padding: EdgeInsets.symmetric(
-          horizontal: isTablet ? 20 : 16,
-          vertical: isTablet ? 16 : 12,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         duration: const Duration(seconds: 4),
       ),
     );
   }
-}
-
-// Helper class for button configuration
-class _ActionButtonConfig {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onPressed;
-  final bool isSecondary;
-
-  const _ActionButtonConfig({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.onPressed,
-    this.isSecondary = false,
-  });
 }

@@ -46,7 +46,7 @@ class WorkerProvider with ChangeNotifier {
     required String lastName,
     required String phone,
     required String jobTitle,
-    required String siteId,
+    String? siteId,   // <-- make optional
     required double dailyWage,
   }) async {
     await workerService.createWorker(

@@ -1,6 +1,6 @@
 class ApiConstants {
   static const String productionBaseUrl = 'https://your-api-url.com/api';
-  static const String localBaseUrl = 'http://192.168.1.125:3000/';
+  static const String localBaseUrl = 'http://10.181.189.19:3000/';
 
   static const String baseUrl = localBaseUrl;
 

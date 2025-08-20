@@ -17,12 +17,16 @@ class NavigationItem {
   });
 }
 
-
 class HomeScreen extends StatefulWidget {
+  final int initialTabIndex;
   final LatLng? mapInitialCenter;
   final double? mapInitialZoom;
-  const HomeScreen({super.key,this.mapInitialCenter,
-    this.mapInitialZoom,});
+  const HomeScreen({
+    super.key,
+    this.initialTabIndex = 0,
+    this.mapInitialCenter,
+    this.mapInitialZoom,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -38,6 +42,12 @@ class _HomeScreenState extends State<HomeScreen> {
     NavigationItem(icon: Icons.business_outlined, label: 'Sites'),
     NavigationItem(icon: Icons.person_outline, label: 'Profile'),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    selectedTab = widget.initialTabIndex;
+  }
 
   void _onTabSelected(int index) {
     if (selectedTab != index) {
@@ -63,7 +73,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   onSelect: _onTabSelected,
                 ),
                 Expanded(
-                  child: _HomeBody(selectedTab: selectedTab),
+                  child: _HomeBody(
+                    selectedTab: selectedTab,
+                    mapInitialCenter: widget.mapInitialCenter,
+                    mapInitialZoom: widget.mapInitialZoom,
+                  ),
                 ),
               ],
             ),
@@ -75,9 +89,11 @@ class _HomeScreenState extends State<HomeScreen> {
               selectedTab: selectedTab,
               navigationItems: _navigationItems,
             ),
-            body: _HomeBody(selectedTab: selectedTab,
+            body: _HomeBody(
+              selectedTab: selectedTab,
               mapInitialCenter: widget.mapInitialCenter,
-              mapInitialZoom: widget.mapInitialZoom,),
+              mapInitialZoom: widget.mapInitialZoom,
+            ),
             bottomNavigationBar: _HomeBottomNavigation(
               selectedTab: selectedTab,
               navigationItems: _navigationItems,
@@ -109,9 +125,11 @@ class _HomeBody extends StatelessWidget {
       case 1:
         return WorkerListPage();
       case 2:
-        return SitesScreen(selectedTab: 0,
+        return SitesScreen(
+          selectedTab: 0,
           mapInitialCenter: mapInitialCenter,
-          mapInitialZoom: mapInitialZoom,);
+          mapInitialZoom: mapInitialZoom,
+        );
       case 3:
         return SitesScreen(selectedTab: 1);
       case 4:
@@ -379,11 +397,9 @@ class _SidebarActionButton extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: onPressed,
         icon: Icon(icon, size: 16),
-        label: Flexible(
-          child: Text(
-            label,
-            overflow: TextOverflow.ellipsis,
-          ),
+        label: Text(
+          label,
+          overflow: TextOverflow.ellipsis,
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: Color(0xFF3B82F6),

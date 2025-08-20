@@ -37,7 +37,6 @@ class RegisterRequest extends Equatable {
   final String lastName;
   final String email;
   final String phone;
-  final String company;
   final String password;
 
   const RegisterRequest({
@@ -45,7 +44,6 @@ class RegisterRequest extends Equatable {
     required this.lastName,
     required this.email,
     required this.phone,
-    required this.company,
     required this.password,
   });
 
@@ -55,7 +53,6 @@ class RegisterRequest extends Equatable {
       lastName: json['lastName'] as String,
       email: json['email'] as String,
       phone: json['phone'] as String,
-      company: json['company'] as String,
       password: json['password'] as String,
     );
   }
@@ -66,13 +63,12 @@ class RegisterRequest extends Equatable {
       'lastName': lastName,
       'email': email,
       'phone': phone,
-      'company': company,
       'password': password,
     };
   }
 
   @override
-  List<Object?> get props => [firstName, lastName, email, phone, company, password];
+  List<Object?> get props => [firstName, lastName, email, phone, password];
 }
 
 class AuthResponse extends Equatable {

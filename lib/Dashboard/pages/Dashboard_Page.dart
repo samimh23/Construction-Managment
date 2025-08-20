@@ -241,7 +241,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                 Icon(Icons.calendar_today, size: 16, color: Color(0xFF64748B)),
                 SizedBox(width: 8),
                 Text(
-                  'August 16, 2025',
+                  getFormattedDate(),
                   style: TextStyle(
                     fontSize: 14,
                     color: Color(0xFF374151),
@@ -255,13 +255,87 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
       ),
     );
   }
+  String getFormattedDate() {
+    final now = DateTime.now();
+    // Example: August 18, 2025
+    final months = [
+      'January','February','March','April','May','June',
+      'July','August','September','October','November','December'
+    ];
+    String month = months[now.month - 1];
+    return '$month ${now.day}, ${now.year}';
+  }
+  Widget _buildKPICards(
+      bool isLargeScreen,
+      int todayPresent,
+      int todayAbsent,
+      double dailyPayout,
+      double averageDailyWage,
+      ) {
+    final attendanceProvider = Provider.of<AttendanceProvider>(context);
 
-  Widget _buildKPICards(bool isLargeScreen, int todayPresent, int todayAbsent, double dailyPayout, double averageDailyWage) {
+    // Previous day's data for trend calculations
+    int prevPresent = attendanceProvider.ownerDashboardSummary?['yesterday']?['present'] ?? 0;
+    int prevAbsent = attendanceProvider.ownerDashboardSummary?['yesterday']?['absent'] ?? 0;
+    double prevPayout = attendanceProvider.ownerDashboardSummary?['yesterday']?['totalPayout']?.toDouble() ?? 0.0;
+
+    // Calculate trends
+    // Today Present Trend
+    double presentDiff = (todayPresent - prevPresent) as double;
+    double presentTrendPercent = prevPresent == 0 ? 0 : (presentDiff / prevPresent) * 100;
+    String todayPresentTrend = (presentTrendPercent >= 0 ? '+' : '') + presentTrendPercent.toStringAsFixed(1) + '%';
+
+    // Today Absent Trend
+    double absentDiff = (todayAbsent - prevAbsent) as double;
+    double absentTrendPercent = prevAbsent == 0 ? 0 : (absentDiff / prevAbsent) * 100;
+    String todayAbsentTrend = (absentTrendPercent >= 0 ? '+' : '') + absentTrendPercent.toStringAsFixed(1) + '%';
+
+    // Daily Payout Trend
+    double payoutDiff = dailyPayout - prevPayout;
+    double payoutTrendPercent = prevPayout == 0 ? 0 : (payoutDiff / prevPayout) * 100;
+    String dailyPayoutTrend = (payoutTrendPercent >= 0 ? '+' : '') + payoutTrendPercent.toStringAsFixed(1) + '%';
+
+    // Efficiency Trend (attendance rate)
+    int prevTotal = prevPresent + prevAbsent;
+    int todayTotal = todayPresent + todayAbsent;
+    double prevEfficiency = prevTotal == 0 ? 0 : (prevPresent / prevTotal) * 100;
+    double todayEfficiency = todayTotal == 0 ? 0 : (todayPresent / todayTotal) * 100;
+    double efficiencyChange = todayEfficiency - prevEfficiency;
+    String efficiencyTrend = (efficiencyChange >= 0 ? '+' : '') + efficiencyChange.toStringAsFixed(1) + '%';
+
     final kpis = [
-      {'title': 'Today Present', 'value': '$todayPresent', 'subtitle': 'workers on-site', 'icon': Icons.people, 'color': Color(0xFF059669), 'trend': '+5.2%'},
-      {'title': 'Today Absent', 'value': '$todayAbsent', 'subtitle': 'workers absent', 'icon': Icons.person_off, 'color': Color(0xFFDC2626), 'trend': '-2.1%'},
-      {'title': 'Daily Payout', 'value': '${(dailyPayout/1000).toStringAsFixed(1)}k', 'subtitle': 'total wages', 'icon': Icons.payments, 'color': Color(0xFF3B82F6), 'trend': '+12.5%'},
-      {'title': 'Efficiency', 'value': '${((todayPresent / ((todayPresent + todayAbsent) == 0 ? 1 : (todayPresent + todayAbsent))) * 100).toInt()}%', 'subtitle': 'attendance rate', 'icon': Icons.trending_up, 'color': Color(0xFF7C3AED), 'trend': '+3.8%'},
+      {
+        'title': 'Today Present',
+        'value': '$todayPresent',
+        'subtitle': 'workers on-site',
+        'icon': Icons.people,
+        'color': Color(0xFF059669),
+        'trend': todayPresentTrend,
+      },
+      {
+        'title': 'Today Absent',
+        'value': '$todayAbsent',
+        'subtitle': 'workers absent',
+        'icon': Icons.person_off,
+        'color': Color(0xFFDC2626),
+        'trend': todayAbsentTrend,
+      },
+      {
+        'title': 'Daily Payout',
+        'value': '${(dailyPayout / 1000).toStringAsFixed(1)}k',
+        'subtitle': 'total wages',
+        'icon': Icons.payments,
+        'color': Color(0xFF3B82F6),
+        'trend': dailyPayoutTrend,
+      },
+      {
+        'title': 'Efficiency',
+        'value': '${todayEfficiency.toInt()}%',
+        'subtitle': 'attendance rate',
+        'icon': Icons.trending_up,
+        'color': Color(0xFF7C3AED),
+        'trend': efficiencyTrend,
+      },
     ];
 
     if (isLargeScreen) {

@@ -17,8 +17,17 @@ class SiteDetailsDatesCard extends StatelessWidget {
     required this.onEndDateChanged,
   });
 
+  // Dashboard colors
+  static const Color _primaryBlue = Color(0xFF4285F4);
+  static const Color _successGreen = Color(0xFF34A853);
+  static const Color _warningRed = Color(0xFFEA4335);
+  static const Color _lightGray = Color(0xFFF8F9FA);
+  static const Color _borderGray = Color(0xFFE8EAED);
+  static const Color _textGray = Color(0xFF5F6368);
+  static const Color _darkText = Color(0xFF202124);
+
   String _formatDate(DateTime? date) {
-    return date != null ? DateFormat("MMM dd, yyyy").format(date) : "Not set";
+    return date != null ? DateFormat("MMM d, yyyy").format(date) : "Not set";
   }
 
   @override
@@ -27,9 +36,9 @@ class SiteDetailsDatesCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildDateFields(context),
-        if (!isEditing && (startDate != null || endDate != null)) ...[
+        if (!isEditing && (startDate != null && endDate != null)) ...[
           const SizedBox(height: 16),
-          _buildProjectDuration(),
+          _buildProjectProgress(),
         ],
       ],
     );
@@ -43,8 +52,6 @@ class SiteDetailsDatesCard extends StatelessWidget {
             context,
             "Start Date",
             startDate,
-            Icons.play_circle_outline_rounded,
-            const Color(0xFF10B981),
             onStartDateChanged,
           ),
         ),
@@ -54,8 +61,6 @@ class SiteDetailsDatesCard extends StatelessWidget {
             context,
             "End Date",
             endDate,
-            Icons.stop_circle_outlined,
-            const Color(0xFFEF4444),
             onEndDateChanged,
           ),
         ),
@@ -67,8 +72,6 @@ class SiteDetailsDatesCard extends StatelessWidget {
       BuildContext context,
       String label,
       DateTime? date,
-      IconData icon,
-      Color color,
       Function(DateTime?) onChanged,
       ) {
     return Column(
@@ -76,17 +79,17 @@ class SiteDetailsDatesCard extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF6B7280),
+            fontWeight: FontWeight.w500,
+            color: _textGray,
           ),
         ),
         const SizedBox(height: 8),
         if (isEditing)
-          _buildEditableDateField(context, date, icon, color, onChanged)
+          _buildEditableDateField(context, date, onChanged)
         else
-          _buildDisplayDateField(date, icon, color),
+          _buildDisplayDateField(date),
       ],
     );
   }
@@ -94,8 +97,6 @@ class SiteDetailsDatesCard extends StatelessWidget {
   Widget _buildEditableDateField(
       BuildContext context,
       DateTime? date,
-      IconData icon,
-      Color color,
       Function(DateTime?) onChanged,
       ) {
     return InkWell(
@@ -109,7 +110,7 @@ class SiteDetailsDatesCard extends StatelessWidget {
             return Theme(
               data: Theme.of(context).copyWith(
                 colorScheme: Theme.of(context).colorScheme.copyWith(
-                  primary: const Color(0xFF3B82F6),
+                  primary: _primaryBlue,
                 ),
               ),
               child: child!,
@@ -122,166 +123,105 @@ class SiteDetailsDatesCard extends StatelessWidget {
       },
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: _borderGray),
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(icon, color: color, size: 16),
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 _formatDate(date),
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: date != null ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
+                  fontWeight: FontWeight.w400,
+                  color: date != null ? _darkText : _textGray,
                 ),
               ),
             ),
-            Icon(Icons.calendar_today_rounded, color: Colors.grey.shade400, size: 16),
+            Icon(
+              Icons.calendar_today,
+              color: _textGray,
+              size: 16,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDisplayDateField(DateTime? date, IconData icon, Color color) {
+  Widget _buildDisplayDateField(DateTime? date) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: _lightGray,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: _borderGray),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(icon, color: color, size: 16),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              _formatDate(date),
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: date != null ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
-              ),
-            ),
-          ),
-        ],
+      child: Text(
+        _formatDate(date),
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: _darkText,
+        ),
       ),
     );
   }
 
-  Widget _buildProjectDuration() {
+  Widget _buildProjectProgress() {
     if (startDate != null && endDate != null) {
       final duration = endDate!.difference(startDate!).inDays;
       final now = DateTime.now();
       final daysElapsed = now.isAfter(startDate!) ? now.difference(startDate!).inDays : 0;
       final progress = duration > 0 ? (daysElapsed / duration * 100).clamp(0, 100) : 0;
       final isOverdue = endDate!.isBefore(now);
+      final statusColor = isOverdue ? _warningRed : _successGreen;
 
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: _lightGray,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: _borderGray),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: isOverdue
-                        ? const Color(0xFFEF4444).withOpacity(0.1)
-                        : const Color(0xFF3B82F6).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    isOverdue ? Icons.warning_rounded : Icons.access_time_rounded,
-                    color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFF3B82F6),
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     isOverdue
-                        ? "Project overdue by ${now.difference(endDate!).inDays} days"
+                        ? "Overdue by ${now.difference(endDate!).inDays} days"
                         : "Duration: $duration days",
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFF1F2937),
+                      fontWeight: FontWeight.w500,
+                      color: statusColor,
                     ),
                   ),
                 ),
                 Text(
                   "${progress.toInt()}%",
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: statusColor,
                   ),
                 ),
               ],
             ),
             if (!isOverdue) ...[
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progress / 100,
-                  backgroundColor: Colors.grey.shade200,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    progress < 50 ? const Color(0xFF10B981) :
-                    progress < 80 ? const Color(0xFFEAB308) : const Color(0xFFEF4444),
-                  ),
-                  minHeight: 6,
-                ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: progress / 100,
+                backgroundColor: _borderGray,
+                valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                minHeight: 4,
               ),
             ],
           ],
