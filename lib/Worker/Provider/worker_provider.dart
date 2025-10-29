@@ -1,3 +1,4 @@
+import 'package:constructionproject/Worker/Models/attendence.dart';
 import 'package:constructionproject/Worker/Models/worker.dart';
 import 'package:constructionproject/Worker/Service/worker_service.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,12 @@ class WorkerProvider with ChangeNotifier {
   MonthlySalary? monthlySalary;
   bool isMonthlySalaryLoading = false;
   String? monthlySalaryError;
+
+
+  Map<String, Attendance?> todayAttendance = {};
+  Map<String, bool> isTodayAttendanceLoading = {};
+  Map<String, String?> todayAttendanceError = {};
+
 
   WorkerProvider(this.workerService);
 
@@ -138,6 +145,27 @@ class WorkerProvider with ChangeNotifier {
       monthlySalary = null;
     } finally {
       isMonthlySalaryLoading = false;
+      notifyListeners();
+    }
+  }
+  void clearTodayAttendance() {
+    todayAttendance.clear();
+    isTodayAttendanceLoading.clear();
+    todayAttendanceError.clear();
+    notifyListeners();
+  }
+  Future<void> fetchTodayAttendance(String workerId) async {
+    isTodayAttendanceLoading[workerId] = true;
+    todayAttendanceError[workerId] = null;
+    notifyListeners();
+    try {
+      final att = await workerService.fetchTodayAttendance(workerId: workerId);
+      todayAttendance[workerId] = att;
+    } catch (e) {
+      todayAttendanceError[workerId] = e.toString();
+      todayAttendance[workerId] = null;
+    } finally {
+      isTodayAttendanceLoading[workerId] = false;
       notifyListeners();
     }
   }

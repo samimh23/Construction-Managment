@@ -37,9 +37,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
 
   bool isEditing = false;
   late AnimationController _animationController;
-  late AnimationController _buttonAnimationController;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _buttonScaleAnimation;
 
   late TextEditingController nameController;
   late TextEditingController adresseController;
@@ -69,18 +67,10 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _buttonAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-    _buttonScaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _buttonAnimationController, curve: Curves.elasticOut),
-    );
     _animationController.forward();
-    _buttonAnimationController.forward();
     _initControllersFromSite(widget.site);
   }
 
@@ -376,51 +366,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
           ),
         ),
       ),
-      // Modern floating action button for mobile only
-      floatingActionButton: isWeb ? null : _buildMobileFloatingButton(),
-    );
-  }
-
-  Widget _buildMobileFloatingButton() {
-    return AnimatedBuilder(
-      animation: _buttonScaleAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _buttonScaleAnimation.value,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: _primaryBlue.withOpacity(0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: FloatingActionButton.extended(
-              onPressed: isEditing ? _updateSite : () => setState(() => isEditing = true),
-              backgroundColor: isEditing ? _successGreen : _primaryBlue,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              icon: Icon(
-                isEditing ? Icons.save : Icons.edit,
-                size: 20,
-              ),
-              label: Text(
-                isEditing ? 'Save Changes' : 'Edit Site',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+      // REMOVED: No floating action button
     );
   }
 
@@ -542,7 +488,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
           child: _buildMetricCard(
             icon: Icons.account_balance_wallet,
             title: 'Budget',
-            value: budget.isNotEmpty ? '${(double.tryParse(budget) ?? 0).toStringAsFixed(1)}K' : '0.0K',
+            value: _formatBudgetValue(budget),
             change: null,
             isPositive: true,
           ),
@@ -561,6 +507,22 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     );
   }
 
+  // ADDED: Helper method to format budget values properly
+  String _formatBudgetValue(String budget) {
+    if (budget.isEmpty) return '0';
+
+    final value = double.tryParse(budget) ?? 0;
+
+    if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}M';
+    } else if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(1)}K';
+    } else {
+      return value.toStringAsFixed(0);
+    }
+  }
+
+  // FIXED: Improved metric card with better text overflow handling
   Widget _buildMetricCard({
     required IconData icon,
     required String title,
@@ -569,7 +531,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
     required bool isPositive,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12), // Reduced padding
       decoration: BoxDecoration(
         color: _cardWhite,
         borderRadius: BorderRadius.circular(8),
@@ -577,6 +539,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min, // ADDED: Prevent expansion
         children: [
           Row(
             children: [
@@ -589,7 +552,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
                 child: Icon(
                   icon,
                   color: Colors.white,
-                  size: 16,
+                  size: 14, // Reduced icon size
                 ),
               ),
               if (change != null) ...[
@@ -597,7 +560,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
                 Text(
                   change,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10, // Reduced font size
                     fontWeight: FontWeight.w500,
                     color: isPositive ? _successGreen : _warningRed,
                   ),
@@ -606,21 +569,31 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w500,
-              color: _darkText,
+          // FIXED: Better text handling with overflow
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 20, // Reduced from 24
+                fontWeight: FontWeight.w500,
+                color: _darkText,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(height: 2), // Reduced spacing
           Text(
             title,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12, // Reduced from 14
               color: _textGray,
               fontWeight: FontWeight.w400,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -773,7 +746,7 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
             managerId: widget.site.manager,
           ),
         ),
-        const SizedBox(height: 100), // Extra space for floating button
+        const SizedBox(height: 24), // REDUCED: Less space at bottom since no floating button
       ],
     );
   }
@@ -899,7 +872,6 @@ class _SiteDetailsScreenState extends State<SiteDetailsScreen> with TickerProvid
   @override
   void dispose() {
     _animationController.dispose();
-    _buttonAnimationController.dispose();
     nameController.dispose();
     adresseController.dispose();
     budgetController.dispose();

@@ -52,11 +52,14 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<Dio>(
-          create: (_) => Dio(BaseOptions(
-            baseUrl: ApiConstants.localBaseUrl,
-            connectTimeout: const Duration(seconds: 30),
-            receiveTimeout: const Duration(seconds: 30),
-          )),
+          create:
+              (_) => Dio(
+                BaseOptions(
+                  baseUrl: ApiConstants.localBaseUrl,
+                  connectTimeout: const Duration(seconds: 30),
+                  receiveTimeout: const Duration(seconds: 30),
+                ),
+              ),
         ),
         Provider<SharedPreferences>.value(value: sharedPreferences),
 
@@ -65,19 +68,17 @@ class MyApp extends StatelessWidget {
         Provider(create: (_) => OfflineStorageService()),
 
         ProxyProvider2<Dio, SharedPreferences, AuthService>(
-          update: (_, dio, sharedPreferences, __) => AuthService(
-            dio: dio,
-            sharedPreferences: sharedPreferences,
-          ),
+          update:
+              (_, dio, sharedPreferences, __) =>
+                  AuthService(dio: dio, sharedPreferences: sharedPreferences),
         ),
 
         ChangeNotifierProxyProvider<AuthService, AuthProvider>(
-          create: (context) => AuthProvider(
-            authService: context.read<AuthService>(),
-          ),
-          update: (_, authService, __) => AuthProvider(
-            authService: authService,
-          ),
+          create:
+              (context) =>
+                  AuthProvider(authService: context.read<AuthService>()),
+          update:
+              (_, authService, __) => AuthProvider(authService: authService),
         ),
 
         ProxyProvider2<Dio, AuthService, WorkerService>(
@@ -88,40 +89,56 @@ class MyApp extends StatelessWidget {
           update: (_, workerService, __) => WorkerProvider(workerService),
         ),
 
-        ChangeNotifierProvider(
-          create: (_) => SiteProvider(SiteService()),
-        ),
+        ChangeNotifierProvider(create: (_) => SiteProvider(SiteService())),
         ProxyProvider2<Dio, AuthService, ManagerService>(
           update: (_, dio, authService, __) => ManagerService(dio, authService),
         ),
         ChangeNotifierProxyProvider<ManagerService, ManagerDataProvider>(
-          create: (context) => ManagerDataProvider(context.read<ManagerService>()),
-          update: (_, managerService, __) => ManagerDataProvider(managerService),
+          create:
+              (context) => ManagerDataProvider(context.read<ManagerService>()),
+          update:
+              (_, managerService, __) => ManagerDataProvider(managerService),
         ),
 
         // UPDATED: AttendanceService with offline support
-        ProxyProvider3<Dio, ConnectivityService, OfflineStorageService, AttendanceService>(
-          update: (_, dio, connectivity, offline, __) => AttendanceService(
-            dio,
-            offlineStorage: offline,
-            connectivityService: connectivity,
-          ),
+        ProxyProvider3<
+          Dio,
+          ConnectivityService,
+          OfflineStorageService,
+          AttendanceService
+        >(
+          update:
+              (_, dio, connectivity, offline, __) => AttendanceService(
+                dio,
+                offlineStorage: offline,
+                connectivityService: connectivity,
+              ),
         ),
 
         // UPDATED: AttendanceProvider with offline functionality
-        ChangeNotifierProxyProvider4<AttendanceService, ConnectivityService, OfflineStorageService, AuthService, AttendanceProvider>(
-          create: (context) => AttendanceProvider(
-            context.read<AttendanceService>(),
-            authService: context.read<AuthService>(), // Pass AuthService!
-            connectivityService: context.read<ConnectivityService>(),
-            offlineStorage: context.read<OfflineStorageService>(),
-          ),
-          update: (_, service, connectivity, offline, authService, provider) => provider ?? AttendanceProvider(
-            service,
-            authService: authService, // Pass AuthService!
-            connectivityService: connectivity,
-            offlineStorage: offline,
-          ),
+        ChangeNotifierProxyProvider4<
+          AttendanceService,
+          ConnectivityService,
+          OfflineStorageService,
+          AuthService,
+          AttendanceProvider
+        >(
+          create:
+              (context) => AttendanceProvider(
+                context.read<AttendanceService>(),
+                authService: context.read<AuthService>(), // Pass AuthService!
+                connectivityService: context.read<ConnectivityService>(),
+                offlineStorage: context.read<OfflineStorageService>(),
+              ),
+          update:
+              (_, service, connectivity, offline, authService, provider) =>
+                  provider ??
+                  AttendanceProvider(
+                    service,
+                    authService: authService, // Pass AuthService!
+                    connectivityService: connectivity,
+                    offlineStorage: offline,
+                  ),
         ),
 
         // --- Profile providers ---
@@ -132,9 +149,7 @@ class MyApp extends StatelessWidget {
           create: (context) => ProfileProvider(context.read<ProfileService>()),
           update: (_, profileService, __) => ProfileProvider(profileService),
         ),
-        ChangeNotifierProvider(
-          create: (_) => ManagerLocationProvider(),
-        ),
+        ChangeNotifierProvider(create: (_) => ManagerLocationProvider()),
       ],
       child: MaterialApp(
         title: 'Construction Management',
@@ -156,9 +171,7 @@ class MyApp extends StatelessWidget {
             ),
           ),
           inputDecorationTheme: InputDecorationTheme(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 16,
@@ -171,21 +184,35 @@ class MyApp extends StatelessWidget {
           '/register': (context) => const RegisterScreen(),
           '/worker': (context) => const WorkerListPage(),
           '/home': (context) {
-            final authProvider = Provider.of<AuthProvider>(context, listen: false);
-            final role = authProvider.user?.role?.toLowerCase();
+            final authProvider = Provider.of<AuthProvider>(
+              context,
+              listen: false,
+            );
+            final role = authProvider.user?.role.toLowerCase();
+
+            // Route based on actual role
             if (role == 'manager' || role == 'construction_manager') {
               return const ManagerHomeScreen();
+            } else if (role == 'owner') {
+              return HomeScreen();
             } else {
-              return  HomeScreen();
+              // If role is null or unknown, stay on login
+              // This happens during hot restart before user data loads
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                Navigator.of(context).pushReplacementNamed('/login');
+              });
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
             }
           },
           '/profile': (context) => const ProfilePage(),
           '/owner': (context) => const HomeScreen(),
+          '/manager': (context) => const ManagerHomeScreen(),
           '/forgot-password': (context) => const ForgotPasswordScreen(),
           '/confirm-code': (context) => const ConfirmCodeScreen(),
           '/reset-password': (context) => const ResetPasswordScreen(),
-          '/dash': (context) =>  DashboardPage(),
-
+          '/dash': (context) => DashboardPage(),
         },
       ),
     );

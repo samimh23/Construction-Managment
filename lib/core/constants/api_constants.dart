@@ -1,10 +1,11 @@
 class ApiConstants {
   // Base URLs
   static const String productionBaseUrl = 'http://192.168.1.251:3000/';
-  static const String localBaseUrl = 'http://10.181.189.19:3000';
+  static const String localBaseUrl = 'http://10.23.177.19:3000';
 
   // Use this to switch between environments
-  static const String baseUrl = localBaseUrl; // Change to productionBaseUrl for production
+  static const String baseUrl =
+      localBaseUrl; // Change to productionBaseUrl for production
 
   // API Endpoints
   static const String loginEndpoint = '/auth/login';
@@ -15,7 +16,8 @@ class ApiConstants {
   static const String verifyEmailEndpoint = '/auth/verify-email';
   static const String resendVerificationEndpoint = '/auth/resend-verification';
   static const String forgotPasswordEndpoint = '/users/forgot-password';
-  static const String resetPasswordWithCodeEndpoint = '/users/reset-password-with-code';
+  static const String resetPasswordWithCodeEndpoint =
+      '/users/reset-password-with-code';
   // User Endpoints
 
   static const String changePasswordEndpoint = '/user/change-password';
