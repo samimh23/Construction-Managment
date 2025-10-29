@@ -1,10 +1,7 @@
-
-
 import 'package:constructionproject/auth/models/auth_models.dart';
 import 'package:constructionproject/auth/models/user.dart';
 import 'package:constructionproject/auth/services/auth/auth_service.dart';
 import 'package:flutter/foundation.dart';
-
 
 enum AuthStatus { initial, loading, authenticated, unauthenticated }
 
@@ -49,6 +46,25 @@ class AuthProvider extends ChangeNotifier {
     try {
       _setLoading();
       final authResponse = await _authService.login(request);
+      // Role-based client-side gating: allow only managers or owners
+      final role = authResponse.user.role.toLowerCase();
+      const allowedRoles = ['manager', 'construction_manager', 'owner'];
+
+      if (!allowedRoles.contains(role)) {
+        // Ensure any stored auth data is cleared (logout) and reject login
+        try {
+          await _authService.logout();
+        } catch (_) {
+          // ignore
+        }
+        _status = AuthStatus.unauthenticated;
+        _user = null;
+        _errorMessage =
+            'Your account is not authorized to access this application.';
+        notifyListeners();
+        return false;
+      }
+
       _user = authResponse.user;
       _status = AuthStatus.authenticated;
       _errorMessage = null;
@@ -135,7 +151,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-// Add this method to your existing AuthProvider class
+  // Add this method to your existing AuthProvider class
 
   void clearError() {
     if (_errorMessage != null) {

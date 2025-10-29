@@ -38,8 +38,8 @@ class AttendanceService {
     }
   }
 
-  Future<void> checkOut({required String workerCode}) async {
-    final data = {'workerCode': workerCode};
+  Future<void> checkOut({required String workerCode, required String siteId}) async {
+    final data = {'workerCode': workerCode, 'siteId': siteId};
 
     if (connectivityService?.isOnline ?? true) {
       try {
@@ -166,4 +166,9 @@ class AttendanceService {
     return response.data as Map<String, dynamic>;
   }
 
+  /// Get today's attendance status for a specific worker - NEW METHOD
+  Future<Map<String, dynamic>> getTodayAttendanceForWorker({required String workerId}) async {
+    final response = await dio.get('/attendance/today/$workerId');
+    return response.data as Map<String, dynamic>;
+  }
 }

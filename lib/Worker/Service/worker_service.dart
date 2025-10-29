@@ -1,3 +1,4 @@
+import 'package:constructionproject/Worker/Models/attendence.dart';
 import 'package:constructionproject/Worker/Models/worker.dart';
 import 'package:constructionproject/auth/services/auth/auth_service.dart';
 import 'package:dio/dio.dart';
@@ -251,6 +252,22 @@ class WorkerService {
       return MonthlySalary.fromJson(data);
     } else {
       throw Exception('API did not return salary object');
+    }
+  }
+
+  Future<Attendance> fetchTodayAttendance({
+    required String workerId,
+  }) async {
+    final token = await authService.getToken();
+    if (token == null) throw Exception('No auth token found.');
+    dio.options.headers['Authorization'] = 'Bearer $token';
+
+    final response = await dio.get('/attendance/today/$workerId');
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      return Attendance.fromJson(data);
+    } else {
+      throw Exception('API did not return attendance object');
     }
   }
 

@@ -51,7 +51,16 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final success = await authProvider.login(loginRequest);
       if (success && mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        // Navigate to specific route based on user role
+        final role = authProvider.user?.role.toLowerCase();
+        if (role == 'manager' || role == 'construction_manager') {
+          Navigator.of(context).pushReplacementNamed('/manager');
+        } else if (role == 'owner') {
+          Navigator.of(context).pushReplacementNamed('/owner');
+        } else {
+          // Fallback to /home if role is unclear
+          Navigator.of(context).pushReplacementNamed('/home');
+        }
       }
     } catch (e) {
       // Error is handled by the AuthProvider
@@ -90,12 +99,24 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
-        child: _buildResponsiveLayout(context, isDesktop, isTablet, isMobile, screenHeight),
+        child: _buildResponsiveLayout(
+          context,
+          isDesktop,
+          isTablet,
+          isMobile,
+          screenHeight,
+        ),
       ),
     );
   }
 
-  Widget _buildResponsiveLayout(BuildContext context, bool isDesktop, bool isTablet, bool isMobile, double screenHeight) {
+  Widget _buildResponsiveLayout(
+    BuildContext context,
+    bool isDesktop,
+    bool isTablet,
+    bool isMobile,
+    double screenHeight,
+  ) {
     if (isDesktop) {
       return _buildDesktopLayout(context);
     } else if (isTablet) {
@@ -118,7 +139,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 end: Alignment.bottomRight,
                 colors: [
                   AppColors.primary ?? Colors.blue,
-                  AppColors.primary?.withOpacity(0.8) ?? Colors.blue.withOpacity(0.8),
+                  AppColors.primary?.withOpacity(0.8) ??
+                      Colors.blue.withOpacity(0.8),
                 ],
               ),
             ),
@@ -126,11 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.construction,
-                    size: 120,
-                    color: Colors.white,
-                  ),
+                  Icon(Icons.construction, size: 120, color: Colors.white),
                   SizedBox(height: 24),
                   Text(
                     'Construction Project',
@@ -143,10 +161,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(height: 16),
                   Text(
                     'Manage your projects efficiently',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white70,
-                    ),
+                    style: TextStyle(fontSize: 18, color: Colors.white70),
                   ),
                 ],
               ),
@@ -213,7 +228,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // Flexible spacing at top
                   SizedBox(height: isSmallScreen ? 20 : 40),
-                  _buildLoginContent(isMobile: true, isSmallScreen: isSmallScreen),
+                  _buildLoginContent(
+                    isMobile: true,
+                    isSmallScreen: isSmallScreen,
+                  ),
                   // Flexible spacing at bottom
                   const Spacer(),
                 ],
@@ -225,7 +243,10 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildLoginContent({bool isMobile = false, bool isSmallScreen = false}) {
+  Widget _buildLoginContent({
+    bool isMobile = false,
+    bool isSmallScreen = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -243,8 +264,8 @@ class _LoginScreenState extends State<LoginScreen> {
           onEmailChanged: _onEmailChanged,
           onLogin: _handleLogin,
         ),
-        // Add "Forgot Password?" link here
 
+        // Add "Forgot Password?" link here
         SizedBox(height: isSmallScreen ? 16 : 24),
         const RegisterLink(),
       ],

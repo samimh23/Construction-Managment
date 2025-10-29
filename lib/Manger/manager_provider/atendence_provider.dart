@@ -87,7 +87,7 @@ class AttendanceProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> checkIn(String code, {String? siteId}) async {
+  Future<bool> checkIn(String code, String siteId) async {
     setLoading(true);
     clearError();
 
@@ -114,13 +114,54 @@ class AttendanceProvider extends ChangeNotifier {
       }
     }
   }
+  Future<Map<String, dynamic>?> getTodayAttendanceForWorker(String workerId) async {
+    // Return cached data if available
+    if (workerAttendanceCache.containsKey(workerId)) {
+      return workerAttendanceCache[workerId];
+    }
 
-  Future<bool> checkOut(String code) async {
+    try {
+      final result = await attendanceService.getTodayAttendanceForWorker(workerId: workerId);
+
+      // Cache the result
+      workerAttendanceCache[workerId] = result;
+
+      notifyListeners();
+      return result;
+    } catch (e) {
+      debugPrint('Error getting today attendance for worker $workerId: $e');
+      return null;
+    }
+  }  Map<String, Map<String, dynamic>> workerAttendanceCache = {};
+
+
+  Future<void> refreshWorkerAttendance(String workerId) async {
+    try {
+      final result = await attendanceService.getTodayAttendanceForWorker(workerId: workerId);
+      workerAttendanceCache[workerId] = result;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error refreshing attendance for worker $workerId: $e');
+    }
+  }
+  Future<void> refreshAllWorkersAttendance(List<String> workerIds) async {
+    for (final workerId in workerIds) {
+      await refreshWorkerAttendance(workerId);
+    }
+  }
+
+  void clearAttendanceCache() {
+    workerAttendanceCache.clear();
+    notifyListeners();
+  }
+
+  Future<bool> checkOut(String code, String siteId) async {
     setLoading(true);
     clearError();
 
     try {
-      await attendanceService.checkOut(workerCode: code);
+      // Now pass siteId to the attendance service
+      await attendanceService.checkOut(workerCode: code, siteId: siteId);
       setLoading(false);
       await _updatePendingRequestsCount();
 
@@ -203,6 +244,8 @@ class AttendanceProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+
 
   /// Register worker's face
   Future<bool> registerFace(String workerCode, String photoPath) async {

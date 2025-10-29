@@ -9,7 +9,8 @@ class DashboardPage extends StatefulWidget {
   _DashboardPageState createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> with TickerProviderStateMixin {
+class _DashboardPageState extends State<DashboardPage>
+    with TickerProviderStateMixin {
   late TabController _tabController;
   late AnimationController _animationController;
   String? selectedSite;
@@ -18,11 +19,17 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _animationController = AnimationController(duration: Duration(milliseconds: 600), vsync: this);
+    _animationController = AnimationController(
+      duration: Duration(milliseconds: 600),
+      vsync: this,
+    );
     _animationController.forward();
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final attendanceProvider = Provider.of<AttendanceProvider>(context, listen: false);
+      final attendanceProvider = Provider.of<AttendanceProvider>(
+        context,
+        listen: false,
+      );
       final siteProvider = Provider.of<SiteProvider>(context, listen: false);
 
       await attendanceProvider.fetchOwnerDashboardSummary();
@@ -66,25 +73,50 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     final constructionSites = siteProvider.sites;
 
     return Scaffold(
-      backgroundColor: Color(0xFFF8FAFC),
+      backgroundColor: Color(0xFFF1F5F9),
       body: Column(
         children: [
           _buildTopHeader(),
           Expanded(
-            child: attendanceProvider.isLoading
-                ? Center(child: CircularProgressIndicator())
-                : attendanceProvider.error != null
-                ? Center(child: Text(attendanceProvider.error!))
-                : SingleChildScrollView(
-              padding: EdgeInsets.all(isMediumScreen ? 32 : 16),
-              child: Column(
-                children: [
-                  _buildKPICards(isLargeScreen, todayPresent, todayAbsent, dailyPayout, averageDailyWage),
-                  SizedBox(height: 32),
-                  _buildMainContent(isLargeScreen, monthlyPresent, monthlyAbsent, averageDailyWage, presentCount, absentCount, presentWorkers, absentWorkers, constructionSites),
-                ],
-              ),
-            ),
+            child:
+                attendanceProvider.isLoading
+                    ? Center(child: CircularProgressIndicator())
+                    : attendanceProvider.error != null
+                    ? Center(child: Text(attendanceProvider.error!))
+                    : SingleChildScrollView(
+                      padding: EdgeInsets.all(isMediumScreen ? 24 : 16),
+                      child: Column(
+                        children: [
+                          // Site Selector at the top for better UX
+                          _buildSiteSelector(constructionSites),
+                          SizedBox(height: 20),
+
+                          // Compact KPI Cards
+                          _buildKPICards(
+                            isLargeScreen,
+                            isMediumScreen,
+                            todayPresent,
+                            todayAbsent,
+                            dailyPayout,
+                            averageDailyWage,
+                          ),
+                          SizedBox(height: 24),
+
+                          _buildMainContent(
+                            isLargeScreen,
+                            isMediumScreen,
+                            monthlyPresent,
+                            monthlyAbsent,
+                            averageDailyWage,
+                            presentCount,
+                            absentCount,
+                            presentWorkers,
+                            absentWorkers,
+                            constructionSites,
+                          ),
+                        ],
+                      ),
+                    ),
           ),
         ],
       ),
@@ -92,98 +124,142 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
   }
 
   Widget _buildMainContent(
-      bool isLargeScreen,
-      int monthlyPresent,
-      int monthlyAbsent,
-      double averageDailyWage,
-      int presentCount,
-      int absentCount,
-      List<dynamic> presentWorkers,
-      List<dynamic> absentWorkers,
-      List constructionSites,
-      ) {
+    bool isLargeScreen,
+    bool isMediumScreen,
+    int monthlyPresent,
+    int monthlyAbsent,
+    double averageDailyWage,
+    int presentCount,
+    int absentCount,
+    List<dynamic> presentWorkers,
+    List<dynamic> absentWorkers,
+    List constructionSites,
+  ) {
     if (isLargeScreen) {
-      return IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 2,
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: 350,
-                    child: Row(
-                      children: [
-                        Expanded(child: _buildAttendanceChart('Today\'s Attendance', true)),
-                        SizedBox(width: 24),
-                        Expanded(child: _buildAttendanceChart('Monthly Attendance', false, monthlyPresent, monthlyAbsent)),
-                      ],
-                    ),
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Charts section
+          Expanded(
+            flex: 3,
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 350,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildAttendanceChart(
+                          'Today\'s Attendance',
+                          true,
+                        ),
+                      ),
+                      SizedBox(width: 20),
+                      Expanded(
+                        child: _buildAttendanceChart(
+                          'Monthly Attendance',
+                          false,
+                          monthlyPresent,
+                          monthlyAbsent,
+                        ),
+                      ),
+                    ],
                   ),
-                  // REMOVED WEEKLY TRENDS CHART
-                  // SizedBox(height: 24),
-                  // SizedBox(
-                  //   height: 300,
-                  //   child: _buildTrendsChart(),
-                  // ),
-                ],
-              ),
+                ),
+              ],
             ),
-            SizedBox(width: 32),
-            SizedBox(
-              width: 380,
-              child: Column(
-                children: [
-                  _buildSiteSelector(constructionSites),
-                  SizedBox(height: 24),
-                  if (selectedSite != null) ...[
-                    _buildSiteQuickStats(presentCount, absentCount),
-                    SizedBox(height: 24),
-                  ],
-                  SizedBox(
-                    height: 500,
-                    child: selectedSite != null
-                        ? _buildWorkersPanel(presentWorkers, absentWorkers, averageDailyWage)
-                        : _buildEmptyState(),
-                  ),
+          ),
+          SizedBox(width: 24),
+
+          // Side panel
+          SizedBox(
+            width: 350,
+            child: Column(
+              children: [
+                if (selectedSite != null) ...[
+                  _buildSiteQuickStats(presentCount, absentCount),
+                  SizedBox(height: 20),
                 ],
-              ),
+                SizedBox(
+                  height: selectedSite != null ? 450 : 350,
+                  child:
+                      selectedSite != null
+                          ? _buildWorkersPanel(
+                            presentWorkers,
+                            absentWorkers,
+                            averageDailyWage,
+                          )
+                          : _buildEmptyState(),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       );
     } else {
       return Column(
         children: [
+          // Attendance charts
           SizedBox(
-            height: 350,
-            child: Row(
-              children: [
-                Expanded(child: _buildAttendanceChart('Today\'s Attendance', true)),
-                SizedBox(width: 16),
-                Expanded(child: _buildAttendanceChart('Monthly Attendance', false, monthlyPresent, monthlyAbsent)),
-              ],
-            ),
+            height: isMediumScreen ? 300 : 280,
+            child:
+                isMediumScreen
+                    ? Row(
+                      children: [
+                        Expanded(
+                          child: _buildAttendanceChart(
+                            'Today\'s Attendance',
+                            true,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: _buildAttendanceChart(
+                            'Monthly Attendance',
+                            false,
+                            monthlyPresent,
+                            monthlyAbsent,
+                          ),
+                        ),
+                      ],
+                    )
+                    : Column(
+                      children: [
+                        Expanded(
+                          child: _buildAttendanceChart(
+                            'Today\'s Attendance',
+                            true,
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        Expanded(
+                          child: _buildAttendanceChart(
+                            'Monthly Attendance',
+                            false,
+                            monthlyPresent,
+                            monthlyAbsent,
+                          ),
+                        ),
+                      ],
+                    ),
           ),
-          // REMOVED WEEKLY TRENDS CHART
-          // SizedBox(height: 24),
-          // SizedBox(
-          //   height: 300,
-          //   child: _buildTrendsChart(),
-          // ),
-          SizedBox(height: 32),
-          _buildSiteSelector(constructionSites),
-          SizedBox(height: 24),
+          SizedBox(height: 20),
+
           if (selectedSite != null) ...[
             _buildSiteQuickStats(presentCount, absentCount),
-            SizedBox(height: 24),
+            SizedBox(height: 20),
           ],
+
           SizedBox(
-            height: 500,
-            child: selectedSite != null
-                ? _buildWorkersPanel(presentWorkers, absentWorkers, averageDailyWage)
-                : _buildEmptyState(),
+            height: 450,
+            child:
+                selectedSite != null
+                    ? _buildWorkersPanel(
+                      presentWorkers,
+                      absentWorkers,
+                      averageDailyWage,
+                    )
+                    : _buildEmptyState(),
           ),
         ],
       );
@@ -192,60 +268,82 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
 
   Widget _buildTopHeader() {
     return Container(
-      height: 80,
-      padding: EdgeInsets.symmetric(horizontal: 32),
+      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0xFF3B82F6).withOpacity(0.2),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.dashboard_rounded, color: Colors.white, size: 24),
+          ),
+          SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Construction Analytics Dashboard',
+                  'Construction Dashboard',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                    color: Colors.white,
+                    letterSpacing: 0.3,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
+                SizedBox(height: 4),
                 Text(
-                  'Real-time workforce monitoring and analytics',
+                  'Real-time workforce monitoring & analytics',
                   style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF64748B),
+                    fontSize: 13,
+                    color: Colors.white.withOpacity(0.9),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          SizedBox(width: 16),
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Color(0xFFE2E8F0)),
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.calendar_today, size: 16, color: Color(0xFF64748B)),
+                Icon(
+                  Icons.calendar_today_rounded,
+                  size: 16,
+                  color: Colors.white,
+                ),
                 SizedBox(width: 8),
                 Text(
                   getFormattedDate(),
                   style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF374151),
-                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -255,114 +353,282 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
       ),
     );
   }
+
   String getFormattedDate() {
     final now = DateTime.now();
-    // Example: August 18, 2025
     final months = [
-      'January','February','March','April','May','June',
-      'July','August','September','October','November','December'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     String month = months[now.month - 1];
     return '$month ${now.day}, ${now.year}';
   }
+
+  Widget _buildSiteSelector(List constructionSites) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white, Color(0xFFFAFAFA)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Color(0xFFE2E8F0), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF3B82F6).withOpacity(0.15),
+                      Color(0xFF3B82F6).withOpacity(0.08),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.location_city_rounded,
+                  color: Color(0xFF3B82F6),
+                  size: 22,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Construction Site',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Select a site to view details',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              hintText: 'Choose a construction site...',
+              hintStyle: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+              prefixIcon: Icon(
+                Icons.search,
+                color: Color(0xFF94A3B8),
+                size: 20,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Color(0xFF3B82F6), width: 2),
+              ),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+            value: selectedSite,
+            items:
+                constructionSites.map<DropdownMenuItem<String>>((site) {
+                  final name = site.name ?? '';
+                  final id = site.id ?? '';
+                  return DropdownMenuItem(
+                    value: id,
+                    child: Text(
+                      name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF1E293B),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList(),
+            onChanged: (siteId) async {
+              setState(() {
+                selectedSite = siteId;
+              });
+              if (siteId != null) {
+                final attendanceProvider = Provider.of<AttendanceProvider>(
+                  context,
+                  listen: false,
+                );
+                await attendanceProvider.fetchSiteDailyAttendance(siteId);
+                setState(() {});
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildKPICards(
-      bool isLargeScreen,
-      int todayPresent,
-      int todayAbsent,
-      double dailyPayout,
-      double averageDailyWage,
-      ) {
+    bool isLargeScreen,
+    bool isMediumScreen,
+    int todayPresent,
+    int todayAbsent,
+    double dailyPayout,
+    double averageDailyWage,
+  ) {
     final attendanceProvider = Provider.of<AttendanceProvider>(context);
 
     // Previous day's data for trend calculations
-    int prevPresent = attendanceProvider.ownerDashboardSummary?['yesterday']?['present'] ?? 0;
-    int prevAbsent = attendanceProvider.ownerDashboardSummary?['yesterday']?['absent'] ?? 0;
-    double prevPayout = attendanceProvider.ownerDashboardSummary?['yesterday']?['totalPayout']?.toDouble() ?? 0.0;
+    int prevPresent =
+        attendanceProvider.ownerDashboardSummary?['yesterday']?['present'] ?? 0;
+    int prevAbsent =
+        attendanceProvider.ownerDashboardSummary?['yesterday']?['absent'] ?? 0;
+    double prevPayout =
+        attendanceProvider.ownerDashboardSummary?['yesterday']?['totalPayout']
+            ?.toDouble() ??
+        0.0;
 
     // Calculate trends
-    // Today Present Trend
     double presentDiff = (todayPresent - prevPresent) as double;
-    double presentTrendPercent = prevPresent == 0 ? 0 : (presentDiff / prevPresent) * 100;
-    String todayPresentTrend = (presentTrendPercent >= 0 ? '+' : '') + presentTrendPercent.toStringAsFixed(1) + '%';
+    double presentTrendPercent =
+        prevPresent == 0 ? 0 : (presentDiff / prevPresent) * 100;
+    String todayPresentTrend =
+        (presentTrendPercent >= 0 ? '+' : '') +
+        presentTrendPercent.toStringAsFixed(1) +
+        '%';
 
-    // Today Absent Trend
     double absentDiff = (todayAbsent - prevAbsent) as double;
-    double absentTrendPercent = prevAbsent == 0 ? 0 : (absentDiff / prevAbsent) * 100;
-    String todayAbsentTrend = (absentTrendPercent >= 0 ? '+' : '') + absentTrendPercent.toStringAsFixed(1) + '%';
+    double absentTrendPercent =
+        prevAbsent == 0 ? 0 : (absentDiff / prevAbsent) * 100;
+    String todayAbsentTrend =
+        (absentTrendPercent >= 0 ? '+' : '') +
+        absentTrendPercent.toStringAsFixed(1) +
+        '%';
 
-    // Daily Payout Trend
     double payoutDiff = dailyPayout - prevPayout;
-    double payoutTrendPercent = prevPayout == 0 ? 0 : (payoutDiff / prevPayout) * 100;
-    String dailyPayoutTrend = (payoutTrendPercent >= 0 ? '+' : '') + payoutTrendPercent.toStringAsFixed(1) + '%';
+    double payoutTrendPercent =
+        prevPayout == 0 ? 0 : (payoutDiff / prevPayout) * 100;
+    String dailyPayoutTrend =
+        (payoutTrendPercent >= 0 ? '+' : '') +
+        payoutTrendPercent.toStringAsFixed(1) +
+        '%';
 
-    // Efficiency Trend (attendance rate)
     int prevTotal = prevPresent + prevAbsent;
     int todayTotal = todayPresent + todayAbsent;
-    double prevEfficiency = prevTotal == 0 ? 0 : (prevPresent / prevTotal) * 100;
-    double todayEfficiency = todayTotal == 0 ? 0 : (todayPresent / todayTotal) * 100;
+    double prevEfficiency =
+        prevTotal == 0 ? 0 : (prevPresent / prevTotal) * 100;
+    double todayEfficiency =
+        todayTotal == 0 ? 0 : (todayPresent / todayTotal) * 100;
     double efficiencyChange = todayEfficiency - prevEfficiency;
-    String efficiencyTrend = (efficiencyChange >= 0 ? '+' : '') + efficiencyChange.toStringAsFixed(1) + '%';
+    String efficiencyTrend =
+        (efficiencyChange >= 0 ? '+' : '') +
+        efficiencyChange.toStringAsFixed(1) +
+        '%';
 
     final kpis = [
       {
-        'title': 'Today Present',
+        'title': 'Present',
         'value': '$todayPresent',
-        'subtitle': 'workers on-site',
+        'subtitle': 'workers',
         'icon': Icons.people,
         'color': Color(0xFF059669),
         'trend': todayPresentTrend,
       },
       {
-        'title': 'Today Absent',
+        'title': 'Absent',
         'value': '$todayAbsent',
-        'subtitle': 'workers absent',
+        'subtitle': 'workers',
         'icon': Icons.person_off,
         'color': Color(0xFFDC2626),
         'trend': todayAbsentTrend,
       },
       {
-        'title': 'Daily Payout',
+        'title': 'Payout',
         'value': '${(dailyPayout / 1000).toStringAsFixed(1)}k',
-        'subtitle': 'total wages',
+        'subtitle': 'today',
         'icon': Icons.payments,
         'color': Color(0xFF3B82F6),
         'trend': dailyPayoutTrend,
       },
       {
-        'title': 'Efficiency',
+        'title': 'Rate',
         'value': '${todayEfficiency.toInt()}%',
-        'subtitle': 'attendance rate',
+        'subtitle': 'attendance',
         'icon': Icons.trending_up,
         'color': Color(0xFF7C3AED),
         'trend': efficiencyTrend,
       },
     ];
 
-    if (isLargeScreen) {
+    if (isLargeScreen || isMediumScreen) {
       return Row(
-        children: kpis.map((kpi) => Expanded(
-          child: Container(
-            margin: EdgeInsets.only(right: kpis.indexOf(kpi) < kpis.length - 1 ? 24 : 0),
-            child: _buildKPICard(kpi),
-          ),
-        )).toList(),
+        children:
+            kpis
+                .map(
+                  (kpi) => Expanded(
+                    child: Container(
+                      margin: EdgeInsets.only(
+                        right: kpis.indexOf(kpi) < kpis.length - 1 ? 16 : 0,
+                      ),
+                      child: _buildCompactKPICard(kpi),
+                    ),
+                  ),
+                )
+                .toList(),
       );
     } else {
       return Column(
         children: [
           Row(
             children: [
-              Expanded(child: _buildKPICard(kpis[0])),
-              SizedBox(width: 16),
-              Expanded(child: _buildKPICard(kpis[1])),
+              Expanded(child: _buildCompactKPICard(kpis[0])),
+              SizedBox(width: 12),
+              Expanded(child: _buildCompactKPICard(kpis[1])),
             ],
           ),
-          SizedBox(height: 16),
+          SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildKPICard(kpis[2])),
-              SizedBox(width: 16),
-              Expanded(child: _buildKPICard(kpis[3])),
+              Expanded(child: _buildCompactKPICard(kpis[2])),
+              SizedBox(width: 12),
+              Expanded(child: _buildCompactKPICard(kpis[3])),
             ],
           ),
         ],
@@ -370,111 +636,209 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     }
   }
 
-  Widget _buildKPICard(Map<String, dynamic> kpi) {
-    return Container(
-      padding: EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: (kpi['color'] as Color).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+  Widget _buildCompactKPICard(Map<String, dynamic> kpi) {
+    return TweenAnimationBuilder<double>(
+      duration: Duration(milliseconds: 800),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: 0.9 + (value * 0.1),
+          child: Opacity(
+            opacity: value,
+            child: Container(
+              padding: EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white,
+                    (kpi['color'] as Color).withOpacity(0.03),
+                  ],
                 ),
-                child: Icon(
-                  kpi['icon'] as IconData,
-                  color: kpi['color'] as Color,
-                  size: 24,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: (kpi['color'] as Color).withOpacity(0.2),
+                  width: 1.5,
                 ),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: (kpi['trend'] as String).startsWith('+') ? Color(0xFFDCFCE7) : Color(0xFFFEE2E2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  kpi['trend'] as String,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: (kpi['trend'] as String).startsWith('+') ? Color(0xFF059669) : Color(0xFFDC2626),
+                boxShadow: [
+                  BoxShadow(
+                    color: (kpi['color'] as Color).withOpacity(0.08),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-          SizedBox(height: 16),
-          Text(
-            kpi['value'] as String,
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              (kpi['color'] as Color).withOpacity(0.15),
+                              (kpi['color'] as Color).withOpacity(0.08),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (kpi['color'] as Color).withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          kpi['icon'] as IconData,
+                          color: kpi['color'] as Color,
+                          size: 22,
+                        ),
+                      ),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors:
+                                (kpi['trend'] as String).startsWith('+')
+                                    ? [Color(0xFFDCFCE7), Color(0xFFBBF7D0)]
+                                    : [Color(0xFFFEE2E2), Color(0xFFFECACA)],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: ((kpi['trend'] as String).startsWith('+')
+                                      ? Color(0xFF059669)
+                                      : Color(0xFFDC2626))
+                                  .withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              (kpi['trend'] as String).startsWith('+')
+                                  ? Icons.trending_up
+                                  : Icons.trending_down,
+                              size: 12,
+                              color:
+                                  (kpi['trend'] as String).startsWith('+')
+                                      ? Color(0xFF059669)
+                                      : Color(0xFFDC2626),
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              kpi['trend'] as String,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color:
+                                    (kpi['trend'] as String).startsWith('+')
+                                        ? Color(0xFF059669)
+                                        : Color(0xFFDC2626),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  TweenAnimationBuilder<double>(
+                    duration: Duration(milliseconds: 1200),
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, animValue, child) {
+                      final displayValue = kpi['value'] as String;
+                      return Text(
+                        displayValue,
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                          letterSpacing: -0.5,
+                        ),
+                      );
+                    },
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    kpi['title'] as String,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF475569),
+                      letterSpacing: 0.2,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    kpi['subtitle'] as String,
+                    style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           ),
-          SizedBox(height: 4),
-          Text(
-            kpi['title'] as String,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF374151),
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-          Text(
-            kpi['subtitle'] as String,
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF64748B),
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildAttendanceChart(String title, bool isToday, [int monthlyPresent = 0, int monthlyAbsent = 0]) {
-    int present = isToday
-        ? Provider.of<AttendanceProvider>(context).ownerDashboardSummary?['today']?['present'] ?? 0
-        : monthlyPresent;
-    int absent = isToday
-        ? Provider.of<AttendanceProvider>(context).ownerDashboardSummary?['today']?['absent'] ?? 0
-        : monthlyAbsent;
+  Widget _buildAttendanceChart(
+    String title,
+    bool isToday, [
+    int monthlyPresent = 0,
+    int monthlyAbsent = 0,
+  ]) {
+    int present =
+        isToday
+            ? Provider.of<AttendanceProvider>(
+                  context,
+                ).ownerDashboardSummary?['today']?['present'] ??
+                0
+            : monthlyPresent;
+    int absent =
+        isToday
+            ? Provider.of<AttendanceProvider>(
+                  context,
+                ).ownerDashboardSummary?['today']?['absent'] ??
+                0
+            : monthlyAbsent;
     int total = present + absent;
     int attendanceRate = ((present / (total == 0 ? 1 : total)) * 100).toInt();
 
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white, Color(0xFFFAFAFA)],
+        ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Color(0xFFE2E8F0)),
+        border: Border.all(color: Color(0xFFE2E8F0), width: 1.5),
         boxShadow: [
           BoxShadow(
             color: Color(0x08000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -483,6 +847,24 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
         children: [
           Row(
             children: [
+              Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF3B82F6).withOpacity(0.1),
+                      Color(0xFF3B82F6).withOpacity(0.05),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isToday ? Icons.today_rounded : Icons.calendar_month_rounded,
+                  color: Color(0xFF3B82F6),
+                  size: 20,
+                ),
+              ),
+              SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,36 +872,69 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF1E293B),
+                        letterSpacing: 0.2,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    SizedBox(height: 2),
                     Text(
                       '$total total workers',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: attendanceRate >= 85 ? Color(0xFFDCFCE7) : Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '$attendanceRate%',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: attendanceRate >= 85 ? Color(0xFF059669) : Color(0xFFD97706),
+                  gradient: LinearGradient(
+                    colors:
+                        attendanceRate >= 85
+                            ? [Color(0xFFDCFCE7), Color(0xFFBBF7D0)]
+                            : [Color(0xFFFEF3C7), Color(0xFFFDE68A)],
                   ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (attendanceRate >= 85
+                              ? Color(0xFF059669)
+                              : Color(0xFFD97706))
+                          .withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      attendanceRate >= 85
+                          ? Icons.check_circle
+                          : Icons.warning_rounded,
+                      size: 14,
+                      color:
+                          attendanceRate >= 85
+                              ? Color(0xFF059669)
+                              : Color(0xFFD97706),
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      '$attendanceRate%',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color:
+                            attendanceRate >= 85
+                                ? Color(0xFF059669)
+                                : Color(0xFFD97706),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -528,41 +943,100 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final chartSize = constraints.maxHeight * 0.7;
+                final chartSize = constraints.maxHeight * 0.75;
                 return Row(
                   children: [
                     SizedBox(
                       width: chartSize,
                       height: chartSize,
-                      child: PieChart(
-                        PieChartData(
-                          sections: [
-                            PieChartSectionData(
-                              value: present.toDouble(),
-                              color: Color(0xFF059669),
-                              title: '',
-                              radius: chartSize * 0.25,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          PieChart(
+                            PieChartData(
+                              sections: [
+                                PieChartSectionData(
+                                  value: present.toDouble(),
+                                  color: Color(0xFF059669),
+                                  title: '',
+                                  radius: chartSize * 0.28,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color(0xFF059669),
+                                      Color(0xFF10B981),
+                                    ],
+                                  ),
+                                ),
+                                PieChartSectionData(
+                                  value: absent.toDouble(),
+                                  color: Color(0xFFEF4444),
+                                  title: '',
+                                  radius: chartSize * 0.28,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color(0xFFEF4444),
+                                      Color(0xFFDC2626),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              centerSpaceRadius: chartSize * 0.18,
+                              sectionsSpace: 3,
                             ),
-                            PieChartSectionData(
-                              value: absent.toDouble(),
-                              color: Color.fromARGB(255, 244, 1, 1),
-                              title: '',
-                              radius: chartSize * 0.25,
+                          ),
+                          Container(
+                            width: chartSize * 0.36,
+                            height: chartSize * 0.36,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color(0x10000000),
+                                  blurRadius: 8,
+                                ),
+                              ],
                             ),
-                          ],
-                          centerSpaceRadius: chartSize * 0.15,
-                          sectionsSpace: 2,
-                        ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '$total',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                ),
+                                Text(
+                                  'Total',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    SizedBox(width: 12),
+                    SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _buildChartLegend('Present', present, Color(0xFF059669)),
-                          SizedBox(height: 8),
-                          _buildChartLegend('Absent', absent, Color.fromARGB(255, 255, 0, 0)),
+                          _buildChartLegend(
+                            'Present',
+                            present,
+                            Color(0xFF059669),
+                          ),
+                          SizedBox(height: 12),
+                          _buildChartLegend(
+                            'Absent',
+                            absent,
+                            Color(0xFFEF4444),
+                          ),
                         ],
                       ),
                     ),
@@ -577,88 +1051,54 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
   }
 
   Widget _buildChartLegend(String label, int value, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        SizedBox(width: 6),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$value',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // REMOVED _buildTrendsChart
-
-  Widget _buildSiteSelector(List constructionSites) {
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Color(0xFFE2E8F0)),
+        color: color.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
-          Text('Construction Sites', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-          SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            decoration: InputDecoration(
-              hintText: 'Select a site',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Color(0xFFE2E8F0))),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Color(0xFFE2E8F0))),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Color(0xFF3B82F6), width: 2)),
-              prefixIcon: Icon(Icons.location_on, color: Color(0xFF64748B)),
-              filled: true,
-              fillColor: Color(0xFFF8FAFC),
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [color, color.withOpacity(0.7)]),
+              borderRadius: BorderRadius.circular(3),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
-            value: selectedSite,
-            items: constructionSites.map<DropdownMenuItem<String>>((site) {
-              final name = site.name ?? '';
-              final id = site.id ?? '';
-              return DropdownMenuItem(
-                value: id,
-                child: Text(name, overflow: TextOverflow.ellipsis),
-              );
-            }).toList(),
-            onChanged: (siteId) async {
-              setState(() {
-                selectedSite = siteId;
-              });
-              if (siteId != null) {
-                final attendanceProvider = Provider.of<AttendanceProvider>(context, listen: false);
-                await attendanceProvider.fetchSiteDailyAttendance(siteId);
-                setState(() {});
-              }
-            },
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$value',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -667,26 +1107,31 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
 
   Widget _buildSiteQuickStats(int presentCount, int absentCount) {
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x05000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            selectedSite ?? '',
+            'Site Overview',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1E293B),
             ),
-            overflow: TextOverflow.ellipsis,
           ),
-          SizedBox(height: 16),
+          SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -697,7 +1142,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
                   Icons.check_circle,
                 ),
               ),
-              SizedBox(width: 16),
+              SizedBox(width: 12),
               Expanded(
                 child: _buildQuickStat(
                   'Absent',
@@ -713,82 +1158,87 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     );
   }
 
-  Widget _buildQuickStat(String title, String value, Color color, IconData icon) {
+  Widget _buildQuickStat(
+    String title,
+    String value,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: color.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 24),
-          SizedBox(height: 8),
+          Icon(icon, color: color, size: 20),
+          SizedBox(height: 6),
           Text(
             value,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1E293B),
             ),
           ),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF64748B),
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
+          Text(title, style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
         ],
       ),
     );
   }
 
-  Widget _buildWorkersPanel(List<dynamic> presentWorkers, List<dynamic> absentWorkers, double averageDailyWage) {
+  Widget _buildWorkersPanel(
+    List<dynamic> presentWorkers,
+    List<dynamic> absentWorkers,
+    double averageDailyWage,
+  ) {
     return DefaultTabController(
       length: 2,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Color(0xFFE2E8F0)),
         ),
         child: Column(
           children: [
             Container(
-              padding: EdgeInsets.all(20),
+              padding: EdgeInsets.all(16),
               child: TabBar(
                 labelColor: Color(0xFF3B82F6),
                 unselectedLabelColor: Color(0xFF64748B),
                 indicator: BoxDecoration(
                   color: Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 dividerColor: Colors.transparent,
+                labelStyle: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
                 tabs: [
-                  Tab(
-                    child: Text(
-                      'Present (${presentWorkers.length})',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Tab(
-                    child: Text(
-                      'Absent (${absentWorkers.length})',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                  Tab(text: 'Present (${presentWorkers.length})'),
+                  Tab(text: 'Absent (${absentWorkers.length})'),
                 ],
               ),
             ),
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildWorkersList(presentWorkers, Color(0xFF059669), Icons.check_circle, averageDailyWage),
-                  _buildWorkersList(absentWorkers, Color(0xFFDC2626), Icons.cancel, averageDailyWage),
+                  _buildWorkersList(
+                    presentWorkers,
+                    Color(0xFF059669),
+                    Icons.check_circle,
+                    averageDailyWage,
+                  ),
+                  _buildWorkersList(
+                    absentWorkers,
+                    Color(0xFFDC2626),
+                    Icons.cancel,
+                    averageDailyWage,
+                  ),
                 ],
               ),
             ),
@@ -798,110 +1248,109 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     );
   }
 
-  Widget _buildWorkersList(List<dynamic> workers, Color color, IconData icon, double averageDailyWage) {
+  Widget _buildWorkersList(
+    List<dynamic> workers,
+    Color color,
+    IconData icon,
+    double averageDailyWage,
+  ) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 20),
-      child: workers.isEmpty
-          ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(32),
-              ),
-              child: Icon(
-                Icons.person_off,
-                color: color,
-                size: 32,
-              ),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'No workers in this category',
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFF64748B),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      )
-          : ListView.builder(
-        padding: EdgeInsets.only(bottom: 20),
-        itemCount: workers.length,
-        itemBuilder: (context, index) {
-          final worker = workers[index];
-          final name = worker is String
-              ? worker
-              : worker['name'] ?? 'Unknown Worker';
-          return Container(
-            margin: EdgeInsets.only(bottom: 12),
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Center(
-                    child: Text(
-                      name.split(' ').map((name) => name.isNotEmpty ? name[0] : '').join('').toUpperCase(),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child:
+          workers.isEmpty
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(24),
                       ),
+                      child: Icon(Icons.person_off, color: color, size: 24),
                     ),
-                  ),
+                    SizedBox(height: 12),
+                    Text(
+                      'No workers in this category',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B),
+              )
+              : ListView.builder(
+                padding: EdgeInsets.only(bottom: 16),
+                itemCount: workers.length,
+                itemBuilder: (context, index) {
+                  final worker = workers[index];
+                  final name =
+                      worker is String
+                          ? worker
+                          : worker['name'] ?? 'Unknown Worker';
+                  return Container(
+                    margin: EdgeInsets.only(bottom: 8),
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Center(
+                            child: Text(
+                              name
+                                  .split(' ')
+                                  .map((name) => name.isNotEmpty ? name[0] : '')
+                                  .join('')
+                                  .toUpperCase(),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        'Daily Wage: ${worker['dailyWage'].toString()}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF64748B),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF1E293B),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'Wage: ${worker['dailyWage']?.toString() ?? 'N/A'}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF64748B),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  icon,
-                  color: color,
-                  size: 20,
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+                        Icon(icon, color: color, size: 16),
+                      ],
+                    ),
+                  );
+                },
+              ),
     );
   }
 
@@ -909,7 +1358,7 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Color(0xFFE2E8F0)),
       ),
       child: Center(
@@ -917,37 +1366,36 @@ class _DashboardPageState extends State<DashboardPage> with TickerProviderStateM
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 80,
-              height: 80,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
                 color: Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(40),
+                borderRadius: BorderRadius.circular(32),
               ),
               child: Icon(
                 Icons.location_city,
-                size: 40,
+                size: 32,
                 color: Color(0xFF64748B),
               ),
             ),
-            SizedBox(height: 24),
+            SizedBox(height: 16),
             Text(
-              'Select a Construction Site',
+              'Select a Site Above',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF1E293B),
               ),
-              textAlign: TextAlign.center,
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 6),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                'Choose a site from the dropdown above to view worker details',
+                'Choose a construction site to view worker attendance details',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12,
                   color: Color(0xFF64748B),
-                  height: 1.5,
+                  height: 1.4,
                 ),
                 textAlign: TextAlign.center,
               ),
